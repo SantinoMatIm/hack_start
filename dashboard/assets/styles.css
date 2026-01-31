@@ -1,0 +1,618 @@
+/*
+Water Risk Platform - Design System
+Premium minimal environmental aesthetic
+*/
+
+/* ========================================
+   1. CSS VARIABLES / TOKENS
+   ======================================== */
+
+:root {
+    /* Base colors */
+    --color-white: #F2EDE9;
+    --color-surface: #FFFFFF;
+    --color-black: #292929;
+
+    /* Brand accents */
+    --color-accent-primary: #E76237;
+    --color-accent-light: #D9D7CC;
+    --color-accent-dark: #7E8076;
+
+    /* Semantic mapping */
+    --bg-primary: #F2EDE9;
+    --bg-surface: #FFFFFF;
+    --bg-dark: #292929;
+
+    --text-primary: #292929;
+    --text-inverse: #FFFFFF;
+    --text-muted: #7E8076;
+
+    --action-primary: #E76237;
+    --action-secondary: #292929;
+    --border-default: #292929;
+
+    /* Typography */
+    --font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+    /* Spacing */
+    --space-xs: 8px;
+    --space-sm: 12px;
+    --space-md: 20px;
+    --space-lg: 32px;
+    --space-xl: 48px;
+    --space-2xl: 72px;
+    --space-3xl: 96px;
+
+    /* Motion */
+    --duration-fast: 200ms;
+    --duration-medium: 600ms;
+    --duration-slow: 800ms;
+    --duration-default: 800ms;
+    --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-smooth: cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+/* ========================================
+   2. GLOBAL STYLES
+   ======================================== */
+
+.stApp {
+    background-color: var(--bg-primary) !important;
+    font-family: var(--font-family) !important;
+}
+
+.main .block-container {
+    max-width: 1400px !important;
+    padding: 2rem 2vw !important;
+}
+
+/* Hide Streamlit branding */
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+header {visibility: hidden;}
+
+/* ========================================
+   3. TYPOGRAPHY
+   ======================================== */
+
+.display-text {
+    font-size: clamp(48px, 8vw, 90px);
+    font-weight: 800;
+    line-height: 0.95;
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+h1, .stMarkdown h1 {
+    font-size: clamp(40px, 6vw, 70px) !important;
+    font-weight: 800 !important;
+    line-height: 1.0 !important;
+    letter-spacing: -0.02em !important;
+    color: var(--text-primary) !important;
+}
+
+h2, .stMarkdown h2, .section-title {
+    font-size: clamp(32px, 4vw, 55px) !important;
+    font-weight: 800 !important;
+    line-height: 1.1 !important;
+    color: var(--text-primary) !important;
+    margin-bottom: var(--space-lg) !important;
+}
+
+h3, .stMarkdown h3 {
+    font-size: clamp(24px, 3vw, 38px) !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+    color: var(--text-primary) !important;
+}
+
+.body-large {
+    font-size: 20px;
+    font-weight: 500;
+    line-height: 1.35;
+    color: var(--text-muted);
+}
+
+p, .stMarkdown p {
+    font-size: 18px !important;
+    font-weight: 450 !important;
+    line-height: 1.45 !important;
+    color: var(--text-primary) !important;
+}
+
+/* ========================================
+   4. HERO SECTION
+   ======================================== */
+
+.hero-section {
+    min-height: 60vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-3xl) var(--space-lg);
+    margin-bottom: var(--space-2xl);
+}
+
+.hero-content {
+    text-align: center;
+    max-width: 900px;
+}
+
+.hero-content .display-text {
+    margin-bottom: var(--space-lg);
+}
+
+.hero-content .body-large {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+/* ========================================
+   5. SECTIONS
+   ======================================== */
+
+.section {
+    padding: var(--space-xl) 0;
+    margin-bottom: var(--space-xl);
+}
+
+.dark-section {
+    background-color: var(--bg-dark);
+    color: var(--text-inverse);
+    padding: var(--space-3xl) var(--space-xl);
+    margin: var(--space-2xl) calc(-2vw - 1rem);
+    width: calc(100% + 4vw + 2rem);
+}
+
+.dark-section h2,
+.dark-section h3,
+.dark-section p {
+    color: var(--text-inverse) !important;
+}
+
+/* ========================================
+   6. BUTTONS
+   ======================================== */
+
+.stButton > button {
+    background-color: var(--action-secondary) !important;
+    color: var(--text-inverse) !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 16px 24px !important;
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    transition: all var(--duration-fast) var(--ease-default) !important;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.stButton > button:hover {
+    background-color: var(--action-primary) !important;
+    transform: translateY(-2px);
+}
+
+.stButton > button:active {
+    transform: translateY(1px);
+}
+
+.stButton > button[kind="primary"] {
+    background-color: var(--action-primary) !important;
+}
+
+.stButton > button[kind="primary"]:hover {
+    background-color: var(--action-secondary) !important;
+}
+
+/* ========================================
+   7. CARDS
+   ======================================== */
+
+.nav-card {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    padding: var(--space-xl);
+    height: 100%;
+    transition: all var(--duration-medium) var(--ease-default);
+}
+
+.nav-card:hover {
+    border-color: var(--action-primary);
+}
+
+.nav-card-number {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--action-primary);
+    margin-bottom: var(--space-md);
+    letter-spacing: 0.1em;
+}
+
+.nav-card h3 {
+    font-size: 24px !important;
+    margin-bottom: var(--space-sm) !important;
+}
+
+.nav-card p {
+    font-size: 16px !important;
+    color: var(--text-muted) !important;
+}
+
+/* Risk Card */
+.risk-card {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    padding: var(--space-xl);
+    margin-bottom: var(--space-lg);
+}
+
+.risk-card.critical {
+    border-color: #DC2626;
+    border-width: 2px;
+}
+
+.risk-card.high {
+    border-color: var(--action-primary);
+    border-width: 2px;
+}
+
+.risk-card.medium {
+    border-color: #F59E0B;
+}
+
+.risk-card.low {
+    border-color: #10B981;
+}
+
+/* Action Card */
+.action-card {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    padding: var(--space-lg);
+    margin-bottom: var(--space-md);
+    transition: all var(--duration-medium) var(--ease-default);
+}
+
+.action-card:hover {
+    border-color: var(--action-primary);
+}
+
+.action-priority {
+    display: inline-block;
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.action-priority.high {
+    background-color: var(--action-primary);
+    color: var(--text-inverse);
+}
+
+.action-priority.medium {
+    background-color: #F59E0B;
+    color: var(--text-primary);
+}
+
+.action-priority.low {
+    background-color: var(--accent-light);
+    color: var(--text-primary);
+}
+
+/* ========================================
+   8. METRICS & DATA DISPLAY
+   ======================================== */
+
+.metric-container {
+    text-align: center;
+    padding: var(--space-lg);
+}
+
+.metric-value {
+    font-size: clamp(36px, 5vw, 60px);
+    font-weight: 800;
+    line-height: 1;
+    color: var(--text-primary);
+}
+
+.metric-value.critical { color: #DC2626; }
+.metric-value.high { color: var(--action-primary); }
+.metric-value.medium { color: #F59E0B; }
+.metric-value.low { color: #10B981; }
+
+.metric-label {
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    margin-top: var(--space-sm);
+}
+
+/* SPI Gauge */
+.spi-gauge {
+    position: relative;
+    width: 100%;
+    height: 24px;
+    background: linear-gradient(to right,
+        #DC2626 0%,
+        #DC2626 10%,
+        var(--action-primary) 10%,
+        var(--action-primary) 25%,
+        #F59E0B 25%,
+        #F59E0B 40%,
+        #10B981 40%,
+        #10B981 100%
+    );
+    margin: var(--space-md) 0;
+}
+
+.spi-marker {
+    position: absolute;
+    top: -8px;
+    width: 4px;
+    height: 40px;
+    background-color: var(--text-primary);
+    transform: translateX(-50%);
+}
+
+/* ========================================
+   9. SELECTION BADGE
+   ======================================== */
+
+.selection-badge {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-md) var(--space-lg);
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    margin: var(--space-xl) 0;
+}
+
+.badge-item {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+}
+
+.badge-item strong {
+    color: var(--text-primary);
+}
+
+.badge-divider {
+    color: var(--accent-light);
+}
+
+/* ========================================
+   10. FORMS & INPUTS
+   ======================================== */
+
+.stSelectbox > div > div {
+    background-color: var(--bg-surface) !important;
+    border: 1px solid var(--border-default) !important;
+    border-radius: 0 !important;
+}
+
+.stSelectbox > div > div:focus-within {
+    border-color: var(--action-primary) !important;
+    box-shadow: none !important;
+}
+
+.stSlider > div > div > div {
+    background-color: var(--accent-light) !important;
+}
+
+.stSlider > div > div > div > div {
+    background-color: var(--action-primary) !important;
+}
+
+/* ========================================
+   11. TABLES
+   ======================================== */
+
+.stDataFrame {
+    border: 1px solid var(--border-default) !important;
+}
+
+.stDataFrame thead th {
+    background-color: var(--bg-dark) !important;
+    color: var(--text-inverse) !important;
+    font-weight: 700 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* ========================================
+   12. FOOTER
+   ======================================== */
+
+.footer-section {
+    background-color: var(--bg-dark);
+    color: var(--text-inverse);
+    padding: var(--space-3xl) var(--space-xl);
+    margin: var(--space-3xl) calc(-2vw - 1rem) 0;
+    width: calc(100% + 4vw + 2rem);
+    text-align: center;
+}
+
+.footer-tagline {
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: var(--text-inverse) !important;
+    margin-bottom: var(--space-sm) !important;
+}
+
+.footer-subtitle {
+    font-size: 14px !important;
+    color: var(--accent-dark) !important;
+}
+
+/* ========================================
+   13. SCROLL REVEAL ANIMATIONS
+   ======================================== */
+
+.reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity var(--duration-default) var(--ease-default),
+                transform var(--duration-default) var(--ease-default);
+}
+
+.reveal.revealed,
+.reveal:not(.js-enabled) {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.fade-up {
+    transform: translateY(30px);
+}
+
+.fade-scale-up {
+    transform: translateY(20px) scale(0.95);
+}
+
+/* Stagger children */
+.stagger > *:nth-child(1) { transition-delay: 0ms; }
+.stagger > *:nth-child(2) { transition-delay: 100ms; }
+.stagger > *:nth-child(3) { transition-delay: 200ms; }
+.stagger > *:nth-child(4) { transition-delay: 300ms; }
+.stagger > *:nth-child(5) { transition-delay: 400ms; }
+
+/* ========================================
+   14. COMPARISON SECTION
+   ======================================== */
+
+.comparison-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-lg);
+    margin: var(--space-xl) 0;
+}
+
+.comparison-card {
+    padding: var(--space-xl);
+    border: 1px solid var(--border-default);
+}
+
+.comparison-card.no-action {
+    background-color: var(--bg-surface);
+}
+
+.comparison-card.with-action {
+    background-color: var(--bg-dark);
+    color: var(--text-inverse);
+}
+
+.comparison-card.with-action h3,
+.comparison-card.with-action p {
+    color: var(--text-inverse) !important;
+}
+
+.comparison-label {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--text-muted);
+    margin-bottom: var(--space-md);
+}
+
+.comparison-card.with-action .comparison-label {
+    color: var(--accent-dark);
+}
+
+/* Delta indicator */
+.delta-positive {
+    color: #10B981;
+    font-weight: 700;
+}
+
+.delta-negative {
+    color: #DC2626;
+    font-weight: 700;
+}
+
+/* ========================================
+   15. SIDEBAR STYLING
+   ======================================== */
+
+[data-testid="stSidebar"] {
+    background-color: var(--bg-dark) !important;
+}
+
+[data-testid="stSidebar"] .stMarkdown h1,
+[data-testid="stSidebar"] .stMarkdown h2,
+[data-testid="stSidebar"] .stMarkdown h3,
+[data-testid="stSidebar"] .stMarkdown p,
+[data-testid="stSidebar"] label {
+    color: var(--text-inverse) !important;
+}
+
+[data-testid="stSidebar"] .stSelectbox label {
+    color: var(--text-inverse) !important;
+}
+
+/* ========================================
+   16. EXPANDER
+   ======================================== */
+
+.streamlit-expanderHeader {
+    font-weight: 700 !important;
+    font-size: 16px !important;
+    background-color: var(--bg-surface) !important;
+    border: 1px solid var(--border-default) !important;
+}
+
+/* ========================================
+   17. PROGRESS INDICATORS
+   ======================================== */
+
+.stProgress > div > div {
+    background-color: var(--accent-light) !important;
+}
+
+.stProgress > div > div > div {
+    background-color: var(--action-primary) !important;
+}
+
+/* ========================================
+   18. ALERTS / INFO BOXES
+   ======================================== */
+
+.stAlert {
+    border-radius: 0 !important;
+    border: 1px solid var(--border-default) !important;
+}
+
+/* ========================================
+   19. RESPONSIVE ADJUSTMENTS
+   ======================================== */
+
+@media (max-width: 768px) {
+    .hero-section {
+        min-height: 50vh;
+        padding: var(--space-xl) var(--space-md);
+    }
+
+    .comparison-container {
+        grid-template-columns: 1fr;
+    }
+
+    .selection-badge {
+        flex-direction: column;
+        gap: var(--space-sm);
+    }
+
+    .badge-divider {
+        display: none;
+    }
+}
