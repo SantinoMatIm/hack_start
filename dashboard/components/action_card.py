@@ -26,7 +26,14 @@ def render_action_card(action: dict, index: int = 0):
     code = action.get("code", action.get("base_action_id", ""))
     parameters = action.get("parameters", {})
     justification = action.get("justification", "")
-    expected_effect = action.get("expected_effect", "")
+    raw_effect = action.get("expected_effect", "")
+    # Handle both dict and string formats for expected_effect
+    if isinstance(raw_effect, dict):
+        days = raw_effect.get("days_gained", 0)
+        confidence = raw_effect.get("confidence", "")
+        expected_effect = f"+{days} days" + (f" ({confidence})" if confidence else "")
+    else:
+        expected_effect = raw_effect
     priority = parameters.get("priority_level", "MEDIUM") if parameters else "MEDIUM"
     priority_class = get_priority_class(priority)
 
@@ -90,11 +97,18 @@ def render_action_summary(actions: list):
     total_days = 0
     for action in actions:
         effect = action.get("expected_effect", "")
-        # Try to extract days from effect string (e.g., "+6 days" or "~+6 days")
-        import re
-        match = re.search(r'\+?\~?(\d+(?:\.\d+)?)\s*days?', effect, re.IGNORECASE)
-        if match:
-            total_days += float(match.group(1))
+        # Handle both dict and string formats
+        if isinstance(effect, dict):
+            # API returns {"days_gained": 19, "confidence": "estimated"}
+            days_gained = effect.get("days_gained", 0)
+            if days_gained:
+                total_days += float(days_gained)
+        elif isinstance(effect, str):
+            # Try to extract days from effect string (e.g., "+6 days" or "~+6 days")
+            import re
+            match = re.search(r'\+?\~?(\d+(?:\.\d+)?)\s*days?', effect, re.IGNORECASE)
+            if match:
+                total_days += float(match.group(1))
 
     high_priority = sum(1 for a in actions if a.get("parameters", {}).get("priority_level", "").upper() == "HIGH")
 
