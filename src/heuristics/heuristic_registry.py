@@ -13,6 +13,14 @@ from src.heuristics.h4_nonessential_restriction import H4NonessentialRestriction
 from src.heuristics.h5_source_reallocation import H5SourceReallocation
 from src.heuristics.h6_severity_escalation import H6SeverityEscalation
 from src.heuristics.h7_preventive_monitoring import H7PreventiveMonitoring
+from src.heuristics.h8_critical_approaching import H8CriticalApproaching
+from src.heuristics.h9_early_warning import H9EarlyWarning
+from src.heuristics.h10_moderate_urgent import H10ModerateUrgent
+from src.heuristics.h11_short_runway_emergency import H11ShortRunwayEmergency
+from src.heuristics.h12_stable_severe import H12StableSevere
+from src.heuristics.h13_borderline_high import H13BorderlineHigh
+from src.heuristics.h14_improving_maintenance import H14ImprovingMaintenance
+from src.heuristics.h15_extreme_last_chance import H15ExtremeLastChance
 
 
 class HeuristicRegistry:
@@ -32,6 +40,14 @@ class HeuristicRegistry:
             H5SourceReallocation(),
             H6SeverityEscalation(),
             H7PreventiveMonitoring(),
+            H8CriticalApproaching(),
+            H9EarlyWarning(),
+            H10ModerateUrgent(),
+            H11ShortRunwayEmergency(),
+            H12StableSevere(),
+            H13BorderlineHigh(),
+            H14ImprovingMaintenance(),
+            H15ExtremeLastChance(),
         ]
 
     def get_heuristic(self, heuristic_id: str) -> Optional[BaseHeuristic]:
