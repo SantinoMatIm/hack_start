@@ -71,7 +71,7 @@ class RiskClassifier:
         if spi_series.empty:
             raise ValueError("Unable to calculate SPI - insufficient data")
 
-        current_spi = spi_series.iloc[-1]["spi"]
+        current_spi = float(spi_series.iloc[-1]["spi"])  # Convert numpy to native float
 
         # Classify risk level
         risk_level = self.classify(current_spi)
@@ -87,10 +87,10 @@ class RiskClassifier:
         )
 
         result = {
-            "spi_6m": round(current_spi, 2),
+            "spi_6m": float(round(current_spi, 2)),
             "risk_level": risk_level,
             "trend": trend_result["trend"],
-            "days_to_critical": days_to_critical,
+            "days_to_critical": int(days_to_critical) if days_to_critical is not None else None,
             "trend_details": trend_result,
             "last_updated": datetime.utcnow().isoformat(),
         }
