@@ -1,248 +1,385 @@
 # Component Library
 
-**Shared Systems Pod — Frontend Decision Intelligence Organization**
+**Shared Systems Pod — Frontend Decision Intelligence Engineering Organization**
 
 ---
 
-## Purpose
+## Overview
 
-This document catalogs all shared components available for use across pods.
+This document catalogs the reusable components available in the frontend.
 
 ---
 
-## Header Components
+## Component Architecture
 
-**Location**: `dashboard/components/header.py`
-
-### render_header()
-
-```python
-def render_header(title: str, subtitle: str = "") -> None:
-    """Render page header with title and optional subtitle."""
 ```
-
-**Usage**:
-```python
-render_header("Risk Overview", "Current drought risk assessment")
-```
-
-### render_zone_selector()
-
-```python
-def render_zone_selector() -> tuple[str, str]:
-    """Render sidebar zone and profile selectors. Returns (zone_id, profile)."""
-```
-
-**Usage**:
-```python
-zone_id, profile = render_zone_selector()
-```
-
-**Session State**: Updates `selected_zone` and `selected_profile`
-
-### render_back_button()
-
-```python
-def render_back_button() -> None:
-    """Render back navigation button."""
+frontend/src/components/
+├── ui/                    # shadcn/ui base components
+│   ├── button.tsx
+│   ├── card.tsx
+│   ├── badge.tsx
+│   ├── select.tsx
+│   ├── alert.tsx
+│   ├── skeleton.tsx
+│   ├── progress.tsx
+│   ├── tabs.tsx
+│   └── separator.tsx
+│
+├── risk-badge.tsx         # Risk level badge
+├── risk-card.tsx          # Risk assessment card
+├── trend-indicator.tsx    # Trend direction indicator
+├── action-card.tsx        # Recommended action card
+├── navigation.tsx         # Main navigation header
+├── zone-selector.tsx      # Zone dropdown
+└── profile-selector.tsx   # Profile dropdown
 ```
 
 ---
 
-## Risk Display Components
+## Base Components (shadcn/ui)
 
-**Location**: `dashboard/components/risk_display.py`  
-**Owner**: Risk Surfaces Pod (shared for context display)
+These are from shadcn/ui and should be used as building blocks.
 
-### render_risk_card()
+### Button
 
-```python
-def render_risk_card(risk_data: dict) -> None:
-    """Render full risk card with all metrics."""
+```tsx
+import { Button } from '@/components/ui/button';
+
+<Button variant="default">Primary Action</Button>
+<Button variant="secondary">Secondary</Button>
+<Button variant="outline">Outline</Button>
+<Button variant="ghost">Ghost</Button>
+<Button variant="destructive">Destructive</Button>
 ```
 
-**Props**:
-- `risk_data`: API response from `/risk/current`
+### Card
 
-### render_risk_gauge()
+```tsx
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
-```python
-def render_risk_gauge(spi_value: float) -> None:
-    """Render SPI gauge visualization."""
+<Card>
+  <CardHeader>
+    <CardTitle>Card Title</CardTitle>
+    <CardDescription>Card description text</CardDescription>
+  </CardHeader>
+  <CardContent>
+    Content goes here
+  </CardContent>
+</Card>
 ```
 
-### render_risk_metrics()
+### Badge
 
-```python
-def render_risk_metrics(risk_data: dict) -> None:
-    """Render compact risk metrics row (for use on other pages)."""
+```tsx
+import { Badge } from '@/components/ui/badge';
+
+<Badge>Default</Badge>
+<Badge variant="secondary">Secondary</Badge>
+<Badge variant="outline">Outline</Badge>
+<Badge variant="destructive">Destructive</Badge>
 ```
 
-### render_risk_explanation()
+### Select
 
-```python
-def render_risk_explanation(risk_data: dict) -> None:
-    """Render contextual explanation of current risk."""
+```tsx
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+<Select value={value} onValueChange={setValue}>
+  <SelectTrigger>
+    <SelectValue placeholder="Select..." />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="option1">Option 1</SelectItem>
+    <SelectItem value="option2">Option 2</SelectItem>
+  </SelectContent>
+</Select>
 ```
 
----
+### Alert
 
-## Action Components
+```tsx
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertCircle, Info } from 'lucide-react';
 
-**Location**: `dashboard/components/action_card.py`  
-**Owner**: Action Surfaces Pod
+<Alert>
+  <Info className="h-4 w-4" />
+  <AlertTitle>Info</AlertTitle>
+  <AlertDescription>Informational message</AlertDescription>
+</Alert>
 
-### render_action_card()
-
-```python
-def render_action_card(action: dict, index: int) -> None:
-    """Render single action card."""
+<Alert variant="destructive">
+  <AlertCircle className="h-4 w-4" />
+  <AlertTitle>Error</AlertTitle>
+  <AlertDescription>Error message</AlertDescription>
+</Alert>
 ```
 
-### render_action_list()
+### Skeleton
 
-```python
-def render_action_list(actions: list) -> None:
-    """Render list of action cards."""
-```
+```tsx
+import { Skeleton } from '@/components/ui/skeleton';
 
-### render_action_summary()
-
-```python
-def render_action_summary(actions: list) -> None:
-    """Render summary statistics for actions."""
-```
-
-### render_heuristic_explanation()
-
-```python
-def render_heuristic_explanation(heuristic_id: str) -> None:
-    """Render explanation for H1-H6 heuristic."""
-```
-
----
-
-## Simulation Components
-
-**Location**: `dashboard/components/simulation_chart.py`  
-**Owner**: Simulation Surfaces Pod
-
-### render_simulation_comparison()
-
-```python
-def render_simulation_comparison(simulation: dict) -> None:
-    """Render side-by-side scenario comparison."""
-```
-
-### render_projection_chart()
-
-```python
-def render_projection_chart(simulation: dict, projection_days: int) -> None:
-    """Render timeline projection chart."""
-```
-
-### render_impact_breakdown()
-
-```python
-def render_impact_breakdown(simulation: dict) -> None:
-    """Render per-action impact breakdown."""
-```
-
-### render_decision_summary()
-
-```python
-def render_decision_summary(simulation: dict, zone_id: str, profile: str) -> None:
-    """Render decision summary and CTA."""
+<Skeleton className="h-4 w-24" />
+<Skeleton className="h-8 w-full" />
 ```
 
 ---
 
-## Common Patterns
+## Custom Components
 
-### Loading State
+### RiskBadge
 
-```python
-with st.spinner("Loading data..."):
-    data = api.fetch_data()
+Displays risk level with appropriate color coding.
+
+```tsx
+import { RiskBadge } from '@/components/risk-badge';
+
+<RiskBadge level="CRITICAL" />           // Red
+<RiskBadge level="HIGH" />               // Orange
+<RiskBadge level="MEDIUM" />             // Amber
+<RiskBadge level="LOW" />                // Green
+
+// Props
+interface RiskBadgeProps {
+  level: RiskLevel;          // 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+  size?: 'sm' | 'md' | 'lg'; // Default: 'md'
+  pulse?: boolean;           // Animate critical level
+}
 ```
 
-### Error State
+### TrendIndicator
 
-```python
-if not data or "error" in data:
-    st.error("Unable to fetch data. Please check the API connection.")
-    if st.button("Show Demo Data"):
-        data = get_demo_data()
+Shows trend direction with icon and label.
+
+```tsx
+import { TrendIndicator } from '@/components/trend-indicator';
+
+<TrendIndicator trend="IMPROVING" />  // Green up arrow
+<TrendIndicator trend="STABLE" />     // Gray minus
+<TrendIndicator trend="WORSENING" />  // Red down arrow
+
+// Props
+interface TrendIndicatorProps {
+  trend: Trend;              // 'IMPROVING' | 'STABLE' | 'WORSENING'
+  showLabel?: boolean;       // Default: true
+  size?: 'sm' | 'md' | 'lg'; // Default: 'md'
+}
 ```
 
-### Section Wrapper
+### RiskCard
 
-```python
-st.markdown('<div class="section reveal fade-up">', unsafe_allow_html=True)
-# Content
-st.markdown('</div>', unsafe_allow_html=True)
+Complete risk assessment display card.
+
+```tsx
+import { RiskCard } from '@/components/risk-card';
+
+<RiskCard risk={riskData} zoneName="Mexico City" />
+
+// Props
+interface RiskCardProps {
+  risk: RiskResponse;
+  zoneName: string;
+}
+
+// Features:
+// - Shows SPI-6 value
+// - Days to critical with urgency indicator
+// - Trend indicator
+// - Urgency bar for < 30 days
 ```
 
-### Dark Section
+### ActionCard
 
-```python
-st.markdown("""
-<div class="dark-section reveal fade-up">
-    <div style="text-align: center; max-width: 600px; margin: 0 auto;">
-        <h2>Section Title</h2>
-        <p style="color: var(--accent-dark);">Description text</p>
-    </div>
-</div>
-""", unsafe_allow_html=True)
+Displays recommended action with selection support.
+
+```tsx
+import { ActionCard } from '@/components/action-card';
+
+<ActionCard
+  action={recommendedAction}
+  selected={isSelected}
+  onToggle={handleToggle}
+/>
+
+// Props
+interface ActionCardProps {
+  action: RecommendedAction;
+  selected?: boolean;
+  onToggle?: (code: string) => void;
+}
+
+// Features:
+// - Priority score badge
+// - Heuristic ID
+// - Expected effect (days gained)
+// - AI method indicator
+// - Justification text
+// - Selection state
+```
+
+### ZoneSelector
+
+Dropdown for zone selection.
+
+```tsx
+import { ZoneSelector } from '@/components/zone-selector';
+
+<ZoneSelector
+  zones={zones}
+  value={selectedZone}
+  onChange={setSelectedZone}
+/>
+
+// Props
+interface ZoneSelectorProps {
+  zones: Zone[];
+  value: string;
+  onChange: (value: string) => void;
+}
+```
+
+### ProfileSelector
+
+Dropdown for user profile selection.
+
+```tsx
+import { ProfileSelector } from '@/components/profile-selector';
+
+<ProfileSelector
+  value={selectedProfile}
+  onChange={setSelectedProfile}
+/>
+
+// Props
+interface ProfileSelectorProps {
+  value: Profile;  // 'government' | 'industry'
+  onChange: (value: Profile) => void;
+}
+```
+
+### Navigation
+
+Main application navigation header.
+
+```tsx
+import { Navigation } from '@/components/navigation';
+
+// In layout.tsx
+<Navigation />
+
+// Features:
+// - Logo with link to home
+// - Nav links: Home, Risk, Actions, Simulation
+// - Active state highlighting
+// - Responsive (icons on mobile, full labels on desktop)
 ```
 
 ---
 
-## Component Creation Guidelines
+## Component Patterns
 
-### When to Create Shared Component
+### Conditional Classes with cn()
 
-- Used by 2+ pods
-- Represents a reusable pattern
-- Encapsulates complex logic
+```tsx
+import { cn } from '@/lib/utils';
 
-### Component Structure
-
-```python
-"""
-Component Name
-Brief description of component purpose.
-"""
-
-from typing import Optional, Dict, Any
-import streamlit as st
-
-def render_component_name(
-    required_param: str,
-    optional_param: str = "default",
-    **kwargs
-) -> Optional[Any]:
-    """
-    Render component description.
-    
-    Args:
-        required_param: Description
-        optional_param: Description. Defaults to "default".
-        **kwargs: Additional options
-    
-    Returns:
-        Description of return value, or None if renders directly.
-    """
-    # Implementation
+<Card className={cn(
+  'transition-all duration-200',
+  isSelected && 'ring-2 ring-primary',
+  isUrgent && 'border-red-200'
+)}>
 ```
 
-### Adding to Library
+### Loading States
 
-1. Implement in appropriate file
-2. Add docstring with Args/Returns
-3. Update this document
-4. Notify consuming pods
+```tsx
+if (loading) {
+  return (
+    <Card>
+      <CardHeader>
+        <Skeleton className="h-5 w-3/4" />
+      </CardHeader>
+      <CardContent>
+        <Skeleton className="h-8 w-24" />
+        <Skeleton className="h-4 w-full mt-2" />
+      </CardContent>
+    </Card>
+  );
+}
+```
+
+### Error States
+
+```tsx
+if (error) {
+  return (
+    <Alert variant="destructive">
+      <AlertCircle className="h-4 w-4" />
+      <AlertTitle>Error</AlertTitle>
+      <AlertDescription>{error}</AlertDescription>
+    </Alert>
+  );
+}
+```
+
+### Empty States
+
+```tsx
+if (!data || data.length === 0) {
+  return (
+    <Card className="border-dashed">
+      <CardContent className="py-8 text-center">
+        <Icon className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+        <p className="font-medium">No data available</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          Description of what to do
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+```
 
 ---
 
-*Shared components enable consistency. Use them; don't reinvent them.*
+## Icons (Lucide)
+
+We use Lucide React for icons:
+
+```tsx
+import { 
+  Droplets,      // Water/SPI
+  BarChart3,     // Risk/Charts
+  Zap,           // Actions
+  Play,          // Simulation
+  Clock,         // Time/Days
+  TrendingUp,    // Improving
+  TrendingDown,  // Worsening
+  AlertTriangle, // Warning
+  CheckCircle2,  // Success/Selected
+  XCircle,       // Error/Unselected
+  Info,          // Information
+  AlertCircle,   // Alert
+  Loader2,       // Loading spinner
+  ArrowRight,    // Navigation
+  ChevronLeft,   // Back
+} from 'lucide-react';
+
+<Droplets className="h-5 w-5" />
+<Loader2 className="h-4 w-4 animate-spin" />
+```
+
+---
+
+## Adding New Components
+
+1. Create file in `frontend/src/components/`
+2. Follow naming convention (`kebab-case.tsx`)
+3. Define props interface
+4. Add JSDoc comment
+5. Export from component file
+6. Document in this file
+
+---
+
+*Component library provides consistent, reusable building blocks for the decision interface.*

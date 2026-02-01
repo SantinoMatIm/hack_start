@@ -30,149 +30,163 @@ This document records significant architectural decisions affecting the frontend
 
 ## Current ADRs
 
-### ADR-001: Streamlit as Frontend Framework
+### ADR-007: Migration to Next.js
 
-**Date**: 2024-01-01 (Project inception)
+**Date**: 2026-01-31
 **Status**: Accepted
 
 **Context**: 
-The platform needed a rapid-development frontend capable of displaying climate data, risk assessments, and interactive simulations for enterprise/government users.
+The Streamlit-based frontend (ADR-001) served well for rapid prototyping but showed significant limitations as requirements evolved:
+- Limited UI/UX customization capabilities
+- Full page re-renders on every interaction
+- Difficulty implementing complex interactivity
+- Professional B2B/B2G users expect premium interfaces
+- Streamlit's component model constrains design possibilities
 
 **Options Considered**:
-1. React with custom components
-2. Streamlit with Python
-3. Dash (Plotly)
-4. Gradio
+1. Continue with Streamlit + more CSS hacks
+2. Vue.js 3 + Nuxt
+3. React + Next.js + shadcn/ui
+4. SvelteKit
 
-**Decision**: Streamlit with Python
+**Decision**: Next.js 16 + TypeScript + Tailwind CSS + shadcn/ui + Recharts
 
 **Rationale**:
-- Python ecosystem alignment with backend (FastAPI, pandas, numpy)
-- Rapid prototyping for pilot phase
-- Built-in components for data display
-- Lower frontend specialization barrier
-- Acceptable for B2B/B2G internal tools
+- **Full UI control**: Pixel-perfect customization without framework constraints
+- **shadcn/ui**: Premium component library inspired by Linear/Vercel/Stripe aesthetic
+- **TypeScript**: Type safety reduces bugs and improves developer experience
+- **Tailwind CSS**: Rapid styling with design token system
+- **Recharts**: React-native charting that integrates seamlessly
+- **Large ecosystem**: Easier to find solutions, components, and developers
+- **Backend unchanged**: FastAPI REST API works identically with any frontend
 
 **Consequences**:
-- Limited customization compared to React
-- Constrained by Streamlit component model
-- Custom interactivity requires workarounds (HTML/JS injection)
-- Acceptable trade-off for pilot phase; may revisit for scale
+- Supersedes ADR-001 (Streamlit)
+- Updates ADR-003 (CSS system now Tailwind + CSS variables)
+- Updates ADR-004 (API client now TypeScript in `src/lib/api/`)
+- Updates ADR-005 (State now React hooks + localStorage)
+- Frontend code now in `frontend/` directory
+- Streamlit code in `dashboard/` kept for reference but deprecated
+- All frontend governance documents updated for new stack
 
 ---
 
 ### ADR-002: Multi-Page Application Structure
 
 **Date**: 2024-01-01
-**Status**: Accepted
+**Status**: Accepted (Updated for Next.js)
 
 **Context**:
 The decision workflow has distinct phases: view risk → review actions → run simulation. Needed to determine single-page vs multi-page approach.
 
 **Options Considered**:
 1. Single page with tabs/sections
-2. Multi-page with Streamlit pages feature
+2. Multi-page with distinct routes
 3. Hybrid with conditional rendering
 
-**Decision**: Multi-page with Streamlit pages
+**Decision**: Multi-page with Next.js App Router
 
 **Rationale**:
 - Clear separation of decision phases
 - URL-based navigation for bookmarking/sharing
-- Simpler state management per page
+- Better code organization
 - Aligns with user mental model (sequential workflow)
 
-**Consequences**:
-- Session state must be carefully managed across pages
-- Navigation requires explicit handling
-- Each page is a separate entry point (must handle missing context)
+**Consequences** (Updated):
+- Routes: `/`, `/risk`, `/actions`, `/simulation`
+- State shared via localStorage for cross-page persistence
+- Each page is a separate entry point (handles missing context gracefully)
 
 ---
 
-### ADR-003: CSS-Based Design System
+### ADR-003: Design Token System
 
 **Date**: 2024-01-01
-**Status**: Accepted
+**Status**: Accepted (Updated for Tailwind)
 
 **Context**:
-Streamlit's default styling is functional but generic. Enterprise/government users expect premium visual treatment.
+Enterprise/government users expect premium visual treatment. Need consistent design language.
 
 **Options Considered**:
-1. Streamlit default styling
-2. Custom CSS file with design tokens
-3. Third-party Streamlit themes
-4. Component-level inline styles
+1. Raw CSS values
+2. CSS variables with custom file
+3. Tailwind CSS with CSS variables
+4. CSS-in-JS (styled-components, emotion)
 
-**Decision**: Custom CSS file with design tokens
+**Decision**: Tailwind CSS + CSS variables in `globals.css`
 
 **Rationale**:
-- Full control over visual language
-- Design tokens enable consistency
-- Single source of truth for styling
-- Can evolve without changing component code
+- Tailwind provides rapid development with utility classes
+- CSS variables enable theming (dark mode ready)
+- shadcn/ui uses this pattern (consistency)
+- Design tokens defined once, used everywhere
 
-**Consequences**:
-- Must maintain CSS file
-- Streamlit version upgrades may break selectors
-- HTML injection required for custom components
-- Acceptable complexity for premium appearance
+**Consequences** (Updated):
+- All colors, spacing, typography via Tailwind utilities
+- Custom values in CSS variables (`--risk-critical`, etc.)
+- No inline styles; use `className` with Tailwind
+- Use `cn()` utility for conditional classes
 
 ---
 
 ### ADR-004: API Client Abstraction
 
 **Date**: 2024-01-01
-**Status**: Accepted
+**Status**: Accepted (Updated for TypeScript)
 
 **Context**:
 Frontend needs to communicate with FastAPI backend. Needed to determine how API calls are structured.
 
 **Options Considered**:
-1. Direct httpx calls in each page
-2. Centralized API client class
-3. GraphQL client
+1. Direct fetch calls in each component
+2. Centralized API client module
+3. React Query / SWR
+4. GraphQL client
 
-**Decision**: Centralized API client class in `utils/api_client.py`
+**Decision**: Centralized TypeScript API client in `src/lib/api/`
 
 **Rationale**:
 - Single place for API logic
+- TypeScript types match backend schemas
 - Consistent error handling
-- Easy to mock for testing
 - Demo mode fallback centralized
+- Easy to add caching later (React Query compatible)
 
-**Consequences**:
-- All pages depend on API client
-- Changes to API require client updates
-- Good abstraction boundary maintained
+**Consequences** (Updated):
+- API client in `frontend/src/lib/api/client.ts`
+- Types in `frontend/src/lib/api/types.ts`
+- All components import from `@/lib/api`
+- Demo data included for offline development
 
 ---
 
-### ADR-005: Session State for Client State
+### ADR-005: Client State Management
 
 **Date**: 2024-01-01
-**Status**: Accepted
+**Status**: Accepted (Updated for React)
 
 **Context**:
-Streamlit reruns scripts on each interaction. State must persist across reruns.
+Need to manage client state across components and pages.
 
 **Options Considered**:
-1. URL query parameters
-2. Streamlit session_state
-3. Browser localStorage (via JS)
-4. Server-side session storage
+1. React Context
+2. Zustand
+3. Redux
+4. React hooks + localStorage
 
-**Decision**: Streamlit session_state
+**Decision**: React hooks (useState, useEffect) + localStorage
 
 **Rationale**:
-- Native Streamlit feature
-- Simple key-value API
-- Persists across reruns
-- Sufficient for current needs
+- Simple approach sufficient for current complexity
+- localStorage enables cross-page state (selected actions → simulation)
+- No additional dependencies
+- Can evolve to Zustand if needed later
 
-**Consequences**:
-- State lost on browser refresh (by design)
-- State keys must be managed carefully
-- No persistence across sessions (acceptable for decision tool)
+**Consequences** (Updated):
+- Component state via useState
+- Cross-page state via localStorage
+- Shareable state via URL searchParams where appropriate
+- No global state management library (yet)
 
 ---
 
@@ -202,7 +216,35 @@ Current implementation shows point estimates (e.g., "24 days to critical"). Deci
 
 ## Superseded Decisions
 
-*None yet. Decisions that are superseded will be marked and linked to their replacement.*
+### ADR-001: Streamlit as Frontend Framework
+
+**Date**: 2024-01-01 (Project inception)
+**Status**: Superseded by ADR-007
+
+**Context**: 
+The platform needed a rapid-development frontend capable of displaying climate data, risk assessments, and interactive simulations for enterprise/government users.
+
+**Options Considered**:
+1. React with custom components
+2. Streamlit with Python
+3. Dash (Plotly)
+4. Gradio
+
+**Decision**: Streamlit with Python
+
+**Rationale**:
+- Python ecosystem alignment with backend (FastAPI, pandas, numpy)
+- Rapid prototyping for pilot phase
+- Built-in components for data display
+- Lower frontend specialization barrier
+- Acceptable for B2B/B2G internal tools
+
+**Consequences**:
+- ~~Limited customization compared to React~~ → **Superseded: Now using Next.js**
+- ~~Constrained by Streamlit component model~~ → **Superseded**
+- ~~Custom interactivity requires workarounds~~ → **Superseded**
+
+**Supersession Note**: As the platform matured, Streamlit's limitations became blockers for professional UI/UX. See ADR-007 for migration to Next.js.
 
 ---
 

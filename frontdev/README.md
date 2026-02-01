@@ -29,7 +29,7 @@ Every line of frontend code must serve this mission. If a component, page, or in
 | **Pilot Zones** | Mexico City (CDMX), Monterrey |
 | **User Profiles** | Government (Impact + Urgency), Industry (Impact + Cost) |
 | **Backend** | FastAPI + PostgreSQL + AI Orchestrator |
-| **Frontend Stack** | Streamlit + Plotly |
+| **Frontend Stack** | Next.js 16 + TypeScript + Tailwind CSS + shadcn/ui + Recharts |
 
 ---
 

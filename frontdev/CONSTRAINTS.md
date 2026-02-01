@@ -14,20 +14,22 @@ This document defines the technical, governance, and accessibility constraints t
 
 | Layer | Technology | Constraint |
 |-------|------------|------------|
-| Framework | Streamlit | All UI must be implementable within Streamlit capabilities |
-| Visualization | Plotly | Charts and graphs use Plotly; no external charting libraries without approval |
-| Styling | CSS (custom) | Design system defined in `dashboard/assets/styles.css` |
-| State | Streamlit session_state | All client state managed through session_state |
-| API | FastAPI backend | All data fetched via API client in `dashboard/utils/api_client.py` |
+| Framework | Next.js 16+ | All UI must use React Server/Client Components as appropriate |
+| Language | TypeScript | Strict mode enabled; no `any` types without justification |
+| Styling | Tailwind CSS + shadcn/ui | Use design tokens; no arbitrary values without approval |
+| Visualization | Recharts | Charts and graphs use Recharts; no external charting libraries without approval |
+| State | React hooks + localStorage | Client state via useState/useEffect; persistence via localStorage |
+| API | FastAPI backend | All data fetched via API client in `src/lib/api/client.ts` |
 
 ### Performance Boundaries
 
 | Metric | Constraint | Rationale |
 |--------|------------|-----------|
-| Initial page load | < 3 seconds | Crisis users cannot wait |
-| Interaction response | < 100ms perceived | Stress degrades patience |
+| Initial page load | < 2 seconds (LCP) | Crisis users cannot wait |
+| Interaction response | < 100ms (INP) | Stress degrades patience |
 | API call timeout | 10 seconds max | Fail fast, show fallback |
-| Bundle size | Minimize JS injection | Streamlit adds overhead; don't compound it |
+| Bundle size | < 200KB initial JS | Fast load on all networks |
+| Core Web Vitals | Pass all metrics | Essential for user experience |
 
 ### Integration Boundaries
 
@@ -35,12 +37,13 @@ This document defines the technical, governance, and accessibility constraints t
 ┌─────────────────────────────────────────────────────────────┐
 │                      FRONTEND BOUNDARY                       │
 │                                                              │
-│  dashboard/                                                  │
-│  ├── app.py              ← Main entry                       │
-│  ├── pages/              ← Page implementations              │
-│  ├── components/         ← Reusable UI components           │
-│  ├── assets/             ← CSS, static assets               │
-│  └── utils/              ← API client, helpers              │
+│  frontend/src/                                               │
+│  ├── app/               ← Next.js App Router pages          │
+│  ├── components/        ← React components                   │
+│  │   └── ui/            ← shadcn/ui base components         │
+│  ├── lib/               ← Utilities and API client           │
+│  │   └── api/           ← FastAPI client + types            │
+│  └── styles/            ← Global CSS, design tokens          │
 │                                                              │
 └──────────────────────────┬──────────────────────────────────┘
                            │
@@ -75,11 +78,12 @@ This document defines the technical, governance, and accessibility constraints t
 
 | Constraint | Requirement |
 |------------|-------------|
-| New pages | Must go in `dashboard/pages/` with numeric prefix |
-| Shared components | Must go in `dashboard/components/` |
-| API calls | Must go through `utils/api_client.py` |
-| Styles | Must use design tokens from `assets/styles.css` |
-| State | Must use `st.session_state` keys documented in code |
+| New pages | Must go in `frontend/src/app/{route}/page.tsx` |
+| Shared components | Must go in `frontend/src/components/` |
+| UI primitives | Must use shadcn/ui from `frontend/src/components/ui/` |
+| API calls | Must go through `frontend/src/lib/api/client.ts` |
+| Styles | Must use Tailwind classes + CSS variables from `globals.css` |
+| Types | Must be defined in `frontend/src/lib/api/types.ts` |
 
 ---
 
@@ -182,7 +186,7 @@ When API is unavailable, demo mode may show sample data:
 
 | Constraint | Requirement |
 |------------|-------------|
-| Label clearly | "Demo Data" badge visible |
+| Label clearly | "Demo Mode" Alert component visible |
 | Use realistic values | Based on documented pilot zone profiles |
 | Don't mix with live | Never blend demo and live data |
 
@@ -190,53 +194,51 @@ When API is unavailable, demo mode may show sample data:
 
 ## Design System Constraints
 
-### Design Tokens (from styles.css)
+### Design Tokens (from globals.css)
 
 ```css
-/* Colors - Use these tokens, not raw values */
---bg-primary: #F2EDE9;
---bg-surface: #FFFFFF;
---bg-dark: #292929;
---text-primary: #292929;
---text-inverse: #FFFFFF;
---text-muted: #7E8076;
---action-primary: #E76237;
---action-secondary: #292929;
+/* Colors - Use Tailwind classes, not raw values */
+--background: #FAFBFC;
+--foreground: #0F172A;
+--primary: #2563EB;
+--muted-foreground: #64748B;
 
 /* Risk Level Colors */
-Critical: #DC2626
-High: #E76237 (--action-primary)
-Medium: #F59E0B
-Low: #10B981
+--risk-critical: #DC2626;  /* red-600 */
+--risk-high: #EA580C;      /* orange-600 */
+--risk-medium: #D97706;    /* amber-600 */
+--risk-low: #059669;       /* emerald-600 */
 ```
 
 ### Typography
 
-| Element | Size | Weight |
-|---------|------|--------|
-| Display | clamp(48px, 8vw, 90px) | 800 |
-| H1 | clamp(40px, 6vw, 70px) | 800 |
-| H2 | clamp(32px, 4vw, 55px) | 800 |
-| H3 | clamp(24px, 3vw, 38px) | 700 |
-| Body | 18px | 450 |
-| Caption | 14px | 600 |
+Use Tailwind typography utilities:
+
+| Element | Tailwind Class | Weight |
+|---------|----------------|--------|
+| Display | `text-5xl md:text-6xl` | font-extrabold |
+| H1 | `text-3xl md:text-4xl` | font-bold |
+| H2 | `text-2xl md:text-3xl` | font-bold |
+| H3 | `text-lg md:text-xl` | font-semibold |
+| Body | `text-base` | font-normal |
+| Caption | `text-sm` | font-medium |
 
 ### Shapes
 
 | Constraint | Value |
 |------------|-------|
-| Border radius | 0 (sharp edges) |
-| Borders | 1px solid --border-default |
-| Shadows | None (flat design) |
+| Border radius | Use shadcn/ui defaults (--radius) |
+| Borders | `border` class with default color |
+| Shadows | `shadow-sm`, `shadow-md`, `shadow-lg` |
 
 ### Motion
 
 | Constraint | Value |
 |------------|-------|
-| Default duration | 800ms |
-| Fast duration | 200ms |
-| Easing | cubic-bezier(0.4, 0, 0.2, 1) |
-| Reduced motion | Must be respected |
+| Default duration | 200ms |
+| Slow duration | 400ms |
+| Easing | Tailwind defaults |
+| Reduced motion | Must be respected with `motion-safe:` prefix |
 
 ---
 
