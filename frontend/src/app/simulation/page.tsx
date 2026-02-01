@@ -396,10 +396,10 @@ export default function SimulationPage() {
                   <p className="font-semibold text-lg">{formatNumber(powerPlants.total_capacity_mw)} MW</p>
                 </div>
                 <div className="h-10 w-px bg-blue-200 hidden md:block" />
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   {powerPlants.plants.slice(0, 3).map(plant => (
-                    <Badge key={plant.id} variant="secondary" className="text-xs">
-                      {plant.name.length > 15 ? plant.name.substring(0, 15) + '...' : plant.name}
+                    <Badge key={plant.id} variant="secondary" className="text-xs whitespace-normal">
+                      {plant.name}
                     </Badge>
                   ))}
                   {powerPlants.total > 3 && (

@@ -1,6 +1,7 @@
 """Heuristic registry for coordinating all heuristic rules.
 
-Updated to use the 15 new heuristics based on the technical document.
+Uses drought-response heuristics that map to the actions catalog
+(H1_INDUSTRIAL_AUDIT, H3_AWARENESS_CAMPAIGN, H4_LAWN_BAN, etc.).
 """
 
 from typing import Optional
@@ -10,59 +11,50 @@ from src.config.constants import RiskLevel, Trend, Profile
 from src.db.models import Zone, Action
 from src.heuristics.base_heuristic import BaseHeuristic, HeuristicContext, HeuristicResult
 
-# New heuristics based on technical document
-from src.heuristics.h1_persistence_trigger import H1PersistenceTrigger
-from src.heuristics.h2_flash_drought import H2FlashDrought
-from src.heuristics.h3_seasonality_check import H3SeasonalityCheck
-from src.heuristics.h4_phenological_stress import H4PhenologicalStress
-from src.heuristics.h5_trend_prediction import H5TrendPrediction
-from src.heuristics.h6_wet_season_failure import H6WetSeasonFailure
-from src.heuristics.h7_reservoir_lag import H7ReservoirLag
-from src.heuristics.h8_groundwater_proxy import H8GroundwaterProxy
-from src.heuristics.h9_scale_differential import H9ScaleDifferential
-from src.heuristics.h10_drought_magnitude import H10DroughtMagnitude
-from src.heuristics.h11_markov_transition import H11MarkovTransition
-from src.heuristics.h12_weather_whiplash import H12WeatherWhiplash
-from src.heuristics.h13_cooling_towers import H13CoolingTowers
-from src.heuristics.h14_infrastructure_defense import H14InfrastructureDefense
-from src.heuristics.h15_stepdown_recovery import H15StepdownRecovery
+# Drought-response heuristics (match actions in seed_actions / actions table)
+from src.heuristics.h1_industrial_reduction import H1IndustrialReduction
+from src.heuristics.h2_pressure_management import H2PressureManagement
+from src.heuristics.h3_public_communication import H3PublicCommunication
+from src.heuristics.h4_nonessential_restriction import H4NonessentialRestriction
+from src.heuristics.h5_source_reallocation import H5SourceReallocation
+from src.heuristics.h6_severity_escalation import H6SeverityEscalation
+from src.heuristics.h7_preventive_monitoring import H7PreventiveMonitoring
+from src.heuristics.h8_critical_approaching import H8CriticalApproaching
+from src.heuristics.h9_early_warning import H9EarlyWarning
+from src.heuristics.h10_moderate_urgent import H10ModerateUrgent
+from src.heuristics.h11_short_runway_emergency import H11ShortRunwayEmergency
+from src.heuristics.h12_stable_severe import H12StableSevere
+from src.heuristics.h13_borderline_high import H13BorderlineHigh
+from src.heuristics.h14_improving_maintenance import H14ImprovingMaintenance
+from src.heuristics.h15_extreme_last_chance import H15ExtremeLastChance
 
 
 class HeuristicRegistry:
     """
     Registry for all heuristic rules.
 
-    Coordinates evaluation of all heuristics and aggregates results.
-
-    The 15 heuristics are organized into 4 blocks:
-    - Block I (H1-H3): Early Detection and Rapid Dynamics
-    - Block II (H4-H6): Agricultural Impact and Seasonal Trends
-    - Block III (H7-H9): Hydrological Security and Infrastructure
-    - Block IV (H10-H15): Operational Response and Demand Management
+    Uses drought-response heuristics that activate actions from the
+    actions catalog (H1_INDUSTRIAL_AUDIT, H3_AWARENESS_CAMPAIGN, etc.).
     """
 
     def __init__(self, session: Optional[Session] = None):
         self.session = session
         self._heuristics: list[BaseHeuristic] = [
-            # Block I: Early Detection
-            H1PersistenceTrigger(),
-            H2FlashDrought(),
-            H3SeasonalityCheck(),
-            # Block II: Agricultural Impact
-            H4PhenologicalStress(),
-            H5TrendPrediction(),
-            H6WetSeasonFailure(),
-            # Block III: Hydrological Security
-            H7ReservoirLag(),
-            H8GroundwaterProxy(),
-            H9ScaleDifferential(),
-            # Block IV: Operational Response
-            H10DroughtMagnitude(),
-            H11MarkovTransition(),
-            H12WeatherWhiplash(),
-            H13CoolingTowers(),
-            H14InfrastructureDefense(),
-            H15StepdownRecovery(),
+            H1IndustrialReduction(),
+            H2PressureManagement(),
+            H3PublicCommunication(),
+            H4NonessentialRestriction(),
+            H5SourceReallocation(),
+            H6SeverityEscalation(),
+            H7PreventiveMonitoring(),
+            H8CriticalApproaching(),
+            H9EarlyWarning(),
+            H10ModerateUrgent(),
+            H11ShortRunwayEmergency(),
+            H12StableSevere(),
+            H13BorderlineHigh(),
+            H14ImprovingMaintenance(),
+            H15ExtremeLastChance(),
         ]
 
     def get_heuristic(self, heuristic_id: str) -> Optional[BaseHeuristic]:
