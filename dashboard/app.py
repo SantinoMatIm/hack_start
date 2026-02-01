@@ -164,11 +164,17 @@ def render_sidebar():
         <div style="font-size: 10px; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; font-weight: 600; padding-left: 4px;">Configuration</div>
         """, unsafe_allow_html=True)
         
+        zones_list = ["cdmx", "monterrey", "baidoa"]
+        zone_names = {
+            "cdmx": "Mexico City",
+            "monterrey": "Monterrey",
+            "baidoa": "Baidoa (Somalia) 🌡️"
+        }
         zone = st.selectbox(
             "Zone",
-            ["cdmx", "monterrey"],
-            index=0 if st.session_state.selected_zone == "cdmx" else 1,
-            format_func=lambda x: "Mexico City" if x == "cdmx" else "Monterrey",
+            zones_list,
+            index=zones_list.index(st.session_state.selected_zone) if st.session_state.selected_zone in zones_list else 0,
+            format_func=lambda x: zone_names.get(x, x),
             key="sidebar_zone"
         )
         if zone != st.session_state.selected_zone:
@@ -205,17 +211,17 @@ def main():
             <p class="body-large">Transform climate data into operational decisions. Prioritize actions. Simulate outcomes.</p>
             <div class="hero-stats">
                 <div class="hero-stat">
-                    <span class="hero-stat-value">6</span>
+                    <span class="hero-stat-value">7</span>
                     <span class="hero-stat-label">Heuristics</span>
                 </div>
                 <div class="hero-stat-divider"></div>
                 <div class="hero-stat">
-                    <span class="hero-stat-value">15</span>
+                    <span class="hero-stat-value">16</span>
                     <span class="hero-stat-label">Actions</span>
                 </div>
                 <div class="hero-stat-divider"></div>
                 <div class="hero-stat">
-                    <span class="hero-stat-value">2</span>
+                    <span class="hero-stat-value">3</span>
                     <span class="hero-stat-label">Zones</span>
                 </div>
             </div>
@@ -274,7 +280,7 @@ def main():
             </div>
         </div>
         <p style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: #64748B; margin: 0 0 4px 0;">Decision Intelligence for Water Risk</p>
-        <p style="font-size: 13px; color: #94A3B8; margin: 0;">Mexico City • Monterrey</p>
+        <p style="font-size: 13px; color: #94A3B8; margin: 0;">Mexico City • Monterrey • Baidoa</p>
     </div>
     """, unsafe_allow_html=True)
 

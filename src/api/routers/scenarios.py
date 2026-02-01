@@ -36,6 +36,7 @@ def simulate_scenarios(
             demo_risk = {
                 "cdmx": {"spi": -1.72, "risk_level": "HIGH", "trend": "WORSENING", "days_to_critical": 24},
                 "monterrey": {"spi": -1.45, "risk_level": "HIGH", "trend": "STABLE", "days_to_critical": 38},
+                "baidoa": {"spi": -1.01, "risk_level": "HIGH", "trend": "STABLE", "days_to_critical": 41},
             }
 
             if zone_id not in demo_risk:
@@ -113,9 +114,36 @@ def simulate_scenarios(
             detail=f"No risk assessment available for zone '{request.zone_id}'.",
         )
 
-    # Get actions
+    # Get actions - if none provided, use recommended actions from heuristics
+    action_codes = request.action_codes
+    if not action_codes:
+        # Fetch recommended actions from heuristics
+        from src.config.constants import RiskLevel, Profile
+        from src.heuristics.heuristic_registry import HeuristicRegistry
+
+        try:
+            risk_level = RiskLevel(snapshot.risk_level)
+        except ValueError:
+            risk_level = RiskLevel.MEDIUM
+        try:
+            trend = Trend(snapshot.trend)
+        except ValueError:
+            trend = Trend.STABLE
+
+        registry = HeuristicRegistry(session=session)
+        context = registry.build_context(
+            spi=snapshot.spi_6m,
+            risk_level=risk_level,
+            trend=trend,
+            days_to_critical=snapshot.days_to_critical,
+            profile=Profile.GOVERNMENT,
+            zone_slug=zone.slug,
+        )
+        recommendations = registry.get_recommended_actions(context)
+        action_codes = [r["action_code"] for r in recommendations.get("recommendations", [])]
+
     actions_data = []
-    for code in request.action_codes:
+    for code in action_codes:
         action = session.query(Action).filter(Action.code == code).first()
         if action:
             days_match = re.search(
@@ -138,7 +166,7 @@ def simulate_scenarios(
     if not actions_data:
         raise HTTPException(
             status_code=400,
-            detail="No valid actions found for the provided codes.",
+            detail="No valid actions found. Ensure heuristics are activated for this zone's risk conditions.",
         )
 
     # Parse trend

@@ -35,7 +35,7 @@ class SimulationRequest(BaseModel):
     """Request schema for simulation."""
 
     zone_id: str
-    action_codes: list[str]
+    action_codes: list[str] = []  # Empty = use recommended actions from heuristics
     projection_days: int = 90
 
 

@@ -72,6 +72,23 @@ def list_zones():
     )
 
 
+@router.get("/debug/counts")
+def get_table_counts():
+    """Debug endpoint to check table counts."""
+    from src.db.connection import get_session
+    from src.db.models import Zone, PrecipitationRecord, RiskSnapshot, Action, ActionInstance
+
+    session = next(get_session())
+
+    return {
+        "zones": session.query(Zone).count(),
+        "precipitation_records": session.query(PrecipitationRecord).count(),
+        "risk_snapshots": session.query(RiskSnapshot).count(),
+        "actions": session.query(Action).count(),
+        "action_instances": session.query(ActionInstance).count(),
+    }
+
+
 @router.get("/{zone_id}", response_model=ZoneResponse)
 def get_zone(zone_id: str):
     """

@@ -189,12 +189,12 @@ def main():
     """, unsafe_allow_html=True)
 
     history_data = api.get_risk_history(zone_id, days=30)
-    if history_data and "history" in history_data:
-        history = history_data["history"]
+    if history_data and "snapshots" in history_data:
+        history = history_data["snapshots"]
         if history:
             import plotly.graph_objects as go
 
-            dates = [h.get("date", h.get("calculated_at", "")) for h in history]
+            dates = [h.get("created_at", h.get("date", "")) for h in history]
             spi_values = [h.get("spi_6m", 0) for h in history]
 
             fig = go.Figure()

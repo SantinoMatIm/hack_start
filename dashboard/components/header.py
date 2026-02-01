@@ -63,14 +63,18 @@ def render_zone_selector(current_page: str = None):
         # Zone selection
         zone_options = {
             "cdmx": "Mexico City",
-            "monterrey": "Monterrey"
+            "monterrey": "Monterrey",
+            "baidoa": "Baidoa (Somalia) 🌡️"
         }
+
+        current_zone = st.session_state.get("selected_zone", "cdmx")
+        zone_index = list(zone_options.keys()).index(current_zone) if current_zone in zone_options else 0
 
         selected_zone = st.selectbox(
             "Zone",
             options=list(zone_options.keys()),
             format_func=lambda x: zone_options[x],
-            index=list(zone_options.keys()).index(st.session_state.get("selected_zone", "cdmx")),
+            index=zone_index,
             key="zone_selector"
         )
 
@@ -98,7 +102,8 @@ def render_zone_selector(current_page: str = None):
             st.session_state.recommended_actions = None
 
         # Current selection display
-        zone_icon = "building-2" if selected_zone == "cdmx" else "factory"
+        zone_icons = {"cdmx": "building-2", "monterrey": "factory", "baidoa": "sun"}
+        zone_icon = zone_icons.get(selected_zone, "map-pin")
         profile_icon = "landmark" if selected_profile == "government" else "briefcase"
         
         st.markdown(f"""

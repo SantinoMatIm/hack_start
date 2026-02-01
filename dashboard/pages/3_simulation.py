@@ -77,9 +77,11 @@ def main():
     # Show current context
     col1, col2 = st.columns(2)
 
-    zone_icon = "building-2" if zone_id == "cdmx" else "factory"
+    zone_icons = {"cdmx": "building-2", "monterrey": "factory", "baidoa": "sun"}
+    zone_names = {"cdmx": "Mexico City", "monterrey": "Monterrey", "baidoa": "Baidoa (Somalia)"}
+    zone_icon = zone_icons.get(zone_id, "map-pin")
     profile_icon = "landmark" if profile == "government" else "briefcase"
-    zone_display = "Mexico City" if zone_id == "cdmx" else "Monterrey"
+    zone_display = zone_names.get(zone_id, zone_id.title())
 
     with col1:
         st.markdown(f"""
