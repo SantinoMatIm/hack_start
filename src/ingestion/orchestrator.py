@@ -206,9 +206,17 @@ class IngestionOrchestrator:
             return {"zone": zone.slug, "source": source, "records_added": 0, "status": "up_to_date"}
 
         print(f"Fetching NOAA data for {zone.slug} from {start_date} to {end_date}...")
-        df = self.noaa.fetch_historical_precipitation(
-            zone.latitude, zone.longitude, start_date, end_date
-        )
+
+        # Use state_code for US zones, otherwise use coordinates
+        if zone.country_code == "USA" and zone.state_code:
+            print(f"Using state-based lookup for {zone.state_code}...")
+            df = self.noaa.fetch_state_precipitation(
+                zone.state_code, start_date, end_date, min_years=years
+            )
+        else:
+            df = self.noaa.fetch_historical_precipitation(
+                zone.latitude, zone.longitude, start_date, end_date
+            )
 
         df = self._normalize_precipitation_data(df)
         records_added = self._store_timeseries(zone.id, df, source)

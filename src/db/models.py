@@ -37,6 +37,26 @@ class Zone(Base):
     slug: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     latitude: Mapped[float] = mapped_column(Float, nullable=False)
     longitude: Mapped[float] = mapped_column(Float, nullable=False)
+
+    # Energy prices (optional - if null, use EIA API fallback)
+    energy_price_usd_mwh: Mapped[Optional[float]] = mapped_column(
+        Float, nullable=True, default=None
+    )  # Local electricity price
+    fuel_price_usd_mmbtu: Mapped[Optional[float]] = mapped_column(
+        Float, nullable=True, default=None
+    )  # Local natural gas/fuel price
+    currency: Mapped[Optional[str]] = mapped_column(
+        String(10), nullable=True, default="USD"
+    )  # Currency code (prices always stored in USD)
+
+    # Geographic/Regional codes (for US zones - enables NOAA & EIA regional data)
+    country_code: Mapped[Optional[str]] = mapped_column(
+        String(3), nullable=True, default=None
+    )  # ISO 3166-1 alpha-3 (e.g., USA, MEX, SOM)
+    state_code: Mapped[Optional[str]] = mapped_column(
+        String(5), nullable=True, default=None
+    )  # US state code (e.g., TX, CA, AZ) - used for NOAA & EIA regional data
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, nullable=False
     )
@@ -52,6 +72,9 @@ class Zone(Base):
         back_populates="zone", cascade="all, delete-orphan"
     )
     simulations: Mapped[list["Simulation"]] = relationship(
+        back_populates="zone", cascade="all, delete-orphan"
+    )
+    power_plants: Mapped[list["PowerPlant"]] = relationship(
         back_populates="zone", cascade="all, delete-orphan"
     )
 
@@ -212,3 +235,104 @@ class Simulation(Base):
     # Relationships
     zone: Mapped["Zone"] = relationship(back_populates="simulations")
     input_snapshot: Mapped["RiskSnapshot"] = relationship(back_populates="simulations")
+
+
+# ============================================================================
+# Power Infrastructure Models (for electric sector focus)
+# ============================================================================
+
+
+class PowerPlant(Base):
+    """Power plants dependent on water for cooling."""
+
+    __tablename__ = "power_plants"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    zone_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("zones.id"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    plant_type: Mapped[str] = mapped_column(
+        String(50), nullable=False
+    )  # thermoelectric, nuclear, hydroelectric
+    capacity_mw: Mapped[float] = mapped_column(Float, nullable=False)
+    water_dependency: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="high"
+    )  # high, medium, low
+    cooling_type: Mapped[str] = mapped_column(
+        String(50), nullable=False, default="recirculating"
+    )  # once_through, recirculating, dry
+    latitude: Mapped[float] = mapped_column(Float, nullable=False)
+    longitude: Mapped[float] = mapped_column(Float, nullable=False)
+    operational_status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="active"
+    )  # active, maintenance, offline
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, nullable=False
+    )
+
+    # Relationships
+    zone: Mapped["Zone"] = relationship(back_populates="power_plants")
+    economic_simulations: Mapped[list["EconomicSimulation"]] = relationship(
+        back_populates="power_plant", cascade="all, delete-orphan"
+    )
+
+
+class EnergyPriceCache(Base):
+    """Cached energy prices from EIA API."""
+
+    __tablename__ = "energy_price_cache"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    region: Mapped[str] = mapped_column(String(50), nullable=False)
+    price_type: Mapped[str] = mapped_column(
+        String(50), nullable=False
+    )  # retail, wholesale, fuel
+    value_usd: Mapped[float] = mapped_column(Float, nullable=False)
+    unit: Mapped[str] = mapped_column(String(20), nullable=False)  # MWh, MMBtu
+    source: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="eia"
+    )
+    fetched_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, nullable=False
+    )
+    valid_until: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("region", "price_type", "source", name="uq_energy_price"),
+    )
+
+
+class EconomicSimulation(Base):
+    """Economic impact simulation results for power plants."""
+
+    __tablename__ = "economic_simulations"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    simulation_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("simulations.id"), nullable=True
+    )
+    power_plant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("power_plants.id"), nullable=False
+    )
+    capacity_loss_pct: Mapped[float] = mapped_column(Float, nullable=False)
+    cost_no_action_usd: Mapped[float] = mapped_column(Float, nullable=False)
+    cost_with_action_usd: Mapped[float] = mapped_column(Float, nullable=False)
+    savings_usd: Mapped[float] = mapped_column(Float, nullable=False)
+    emergency_fuel_cost_usd: Mapped[float] = mapped_column(Float, nullable=False)
+    marginal_price_used: Mapped[float] = mapped_column(Float, nullable=False)
+    fuel_price_used: Mapped[float] = mapped_column(Float, nullable=False)
+    projection_days: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, nullable=False
+    )
+
+    # Relationships
+    simulation: Mapped[Optional["Simulation"]] = relationship()
+    power_plant: Mapped["PowerPlant"] = relationship(back_populates="economic_simulations")

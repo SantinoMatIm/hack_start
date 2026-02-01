@@ -11,6 +11,8 @@ from src.api.routers import (
     risk_router,
     actions_router,
     scenarios_router,
+    power_plants_router,
+    economic_router,
 )
 
 # Initialize FastAPI app
@@ -49,6 +51,8 @@ app.include_router(ingestion_router)
 app.include_router(risk_router)
 app.include_router(actions_router)
 app.include_router(scenarios_router)
+app.include_router(power_plants_router)
+app.include_router(economic_router)
 
 
 @app.get("/")
@@ -56,15 +60,18 @@ def root():
     """Root endpoint with API information."""
     return {
         "name": "Water Risk Platform API",
-        "version": "0.1.0",
-        "description": "Decision Intelligence Platform for Water Risk (Drought)",
-        "pilot_zones": ["cdmx", "monterrey"],
+        "version": "0.2.0",
+        "description": "Decision Intelligence Platform for Water Risk & Power Infrastructure",
+        "pilot_zones": ["cdmx", "monterrey", "baidoa"],
         "endpoints": {
             "zones": "/zones",
             "ingestion": "/ingestion/run",
             "risk": "/risk/current",
             "actions": "/actions/recommended",
             "scenarios": "/scenarios/simulate",
+            "power_plants": "/plants",
+            "economic": "/economic/simulate",
+            "energy_prices": "/economic/prices",
         },
         "docs": "/docs",
     }
@@ -81,6 +88,7 @@ def health_check():
             "demo_mode": settings.is_demo_mode,
             "database_configured": bool(settings.database_url),
             "openai_configured": bool(settings.openai_api_key),
+            "eia_configured": bool(settings.eia_api_key),
         }
     except Exception as e:
         return {
@@ -89,6 +97,7 @@ def health_check():
             "demo_mode": True,
             "database_configured": False,
             "openai_configured": False,
+            "eia_configured": False,
             "note": "Running in demo mode"
         }
 
