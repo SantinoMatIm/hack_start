@@ -87,9 +87,9 @@ def simulate_scenarios(
         pass
 
     # Full database mode
+    import re
     from src.db.connection import get_session
     from src.db.models import Zone, RiskSnapshot, Action
-    from src.simulation.scenario_builder import ScenarioBuilder
     from src.simulation.delta_calculator import DeltaCalculator
 
     session = next(get_session())
@@ -118,9 +118,10 @@ def simulate_scenarios(
     for code in request.action_codes:
         action = session.query(Action).filter(Action.code == code).first()
         if action:
-            # Parse expected effect from impact formula
-            import re
-            days_match = re.search(r'[+]?(\d+(?:\.\d+)?)\s*days', action.impact_formula.lower())
+            days_match = re.search(
+                r'[+]?(\d+(?:\.\d+)?)\s*days',
+                action.impact_formula.lower(),
+            )
             days_gained = float(days_match.group(1)) if days_match else 0
 
             actions_data.append({
@@ -146,17 +147,24 @@ def simulate_scenarios(
     except ValueError:
         trend = Trend.STABLE
 
-    # Run simulation
-    builder = ScenarioBuilder()
-    comparison = builder.compare_scenarios(
+    # Run simulation and persist to DB
+    calculator = DeltaCalculator(session=session)
+    result = calculator.simulate_and_store(
+        zone_id=zone.id,
+        snapshot_id=snapshot.id,
         current_spi=snapshot.spi_6m,
         trend=trend,
         actions=actions_data,
         projection_days=request.projection_days,
     )
 
-    # Calculate delta for summary
-    calculator = DeltaCalculator(session=session)
+    comparison = result["comparison"]
+    no_action = result["no_action"]
+    with_action = result["with_action"]
+
+    # Format delta summary
+    from src.simulation.scenario_builder import ScenarioBuilder
+    builder = ScenarioBuilder()
     no_action_proj = builder.build_no_action_scenario(
         current_spi=snapshot.spi_6m,
         trend=trend,
@@ -174,28 +182,38 @@ def simulate_scenarios(
     return SimulationResponse(
         zone_id=zone.slug,
         no_action=ScenarioResult(
-            ending_spi=comparison["no_action"]["ending_spi"],
-            ending_risk_level=comparison["no_action"]["ending_risk_level"],
-            days_to_critical=comparison["no_action"]["days_to_critical"],
+            ending_spi=no_action["ending_spi"],
+            ending_risk_level=no_action["ending_risk_level"],
+            days_to_critical=no_action["days_to_critical"],
             trajectory=[
-                TrajectoryPoint(**point)
-                for point in comparison["no_action"]["trajectory"]
+                TrajectoryPoint(
+                    day=p.get("day"),
+                    projected_spi=p.get("projected_spi"),
+                    risk_level=p.get("risk_level"),
+                    improvement_applied=p.get("improvement_applied"),
+                )
+                for p in no_action["trajectory"]
             ],
         ),
         with_action=ScenarioResult(
-            ending_spi=comparison["with_action"]["ending_spi"],
-            ending_risk_level=comparison["with_action"]["ending_risk_level"],
-            days_to_critical=comparison["with_action"]["days_to_critical"],
+            ending_spi=with_action["ending_spi"],
+            ending_risk_level=with_action["ending_risk_level"],
+            days_to_critical=with_action["days_to_critical"],
             trajectory=[
-                TrajectoryPoint(**point)
-                for point in comparison["with_action"]["trajectory"]
+                TrajectoryPoint(
+                    day=p.get("day"),
+                    projected_spi=p.get("projected_spi"),
+                    risk_level=p.get("risk_level"),
+                    improvement_applied=p.get("improvement_applied"),
+                )
+                for p in with_action["trajectory"]
             ],
         ),
         comparison=ScenarioComparison(
-            days_gained=comparison["comparison"]["days_gained"],
-            spi_improvement=comparison["comparison"]["spi_improvement"],
-            risk_level_change=comparison["comparison"]["risk_level_change"],
-            actions_count=comparison["comparison"]["actions_count"],
+            days_gained=int(comparison["days_gained"]),
+            spi_improvement=comparison["spi_improvement"],
+            risk_level_change=comparison["risk_level_change"],
+            actions_count=comparison["actions_count"],
         ),
         summary=summary,
     )

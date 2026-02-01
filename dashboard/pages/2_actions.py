@@ -19,11 +19,12 @@ from components.action_card import (
 )
 from components.risk_display import render_risk_metrics
 from utils.api_client import get_api_client
+from utils.icons import icon, icon_span
 
 # Page config
 st.set_page_config(
     page_title="Recommended Actions | Water Risk Platform",
-    page_icon="⚡",
+    page_icon="💧",
     layout="wide",
 )
 
@@ -47,11 +48,8 @@ if "selected_actions" not in st.session_state:
 
 
 def main():
-    # Sidebar
-    zone_id, profile = render_zone_selector()
-
-    # Back button
-    render_back_button()
+    # Sidebar with navigation
+    zone_id, profile = render_zone_selector(current_page="actions")
 
     # Header
     render_header(
@@ -64,8 +62,13 @@ def main():
 
     # Show current risk context
     if st.session_state.current_risk:
-        st.markdown('<div class="section reveal fade-up">', unsafe_allow_html=True)
-        st.markdown('<h3>Current Risk Context</h3>', unsafe_allow_html=True)
+        st.markdown('<div class="section fade-in">', unsafe_allow_html=True)
+        st.markdown(f"""
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+            {icon_span("activity", 18, "#2563EB")}
+            <h3 style="margin: 0;">Current Risk Context</h3>
+        </div>
+        """, unsafe_allow_html=True)
         render_risk_metrics(st.session_state.current_risk)
         st.markdown('</div>', unsafe_allow_html=True)
     else:
@@ -81,12 +84,12 @@ def main():
     # Profile explanation
     profile_info = {
         "government": {
-            "icon": "🏛️",
+            "icon": "landmark",
             "priorities": "Impact + Urgency",
             "description": "Prioritizes public welfare and rapid response"
         },
         "industry": {
-            "icon": "🏢",
+            "icon": "briefcase",
             "priorities": "Impact + Cost",
             "description": "Prioritizes cost-effective solutions with high impact"
         }
@@ -94,20 +97,32 @@ def main():
 
     info = profile_info.get(profile, profile_info["government"])
     st.markdown(f"""
-    <div style="background: var(--bg-surface); padding: 20px; border: 1px solid var(--border-default); margin-bottom: 32px;">
+    <div class="card fade-in" style="margin-bottom: 24px;">
         <div style="display: flex; align-items: center; gap: 16px;">
-            <span style="font-size: 32px;">{info['icon']}</span>
+            <div style="display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; background: var(--bg-surface); border-radius: 12px;">
+                {icon(info['icon'], 24, "#2563EB")}
+            </div>
             <div>
-                <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted);">{profile.title()} Profile</div>
-                <div style="font-size: 18px; font-weight: 600;">{info['description']}</div>
-                <div style="font-size: 14px; color: var(--action-primary);">Prioritizes: {info['priorities']}</div>
+                <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted);">{profile.title()} Profile</div>
+                <div style="font-size: 17px; font-weight: 600; color: var(--text-primary);">{info['description']}</div>
+                <div style="font-size: 13px; color: var(--accent-primary); margin-top: 2px;">Prioritizes: {info['priorities']}</div>
             </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
     # Fetch recommended actions
-    fetch_actions = st.button("🔄 Get Recommended Actions", type="primary", use_container_width=True)
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        fetch_actions = st.button("Get Recommended Actions", type="primary", use_container_width=True)
+    with col2:
+        if st.session_state.recommended_actions:
+            st.markdown(f"""
+            <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); font-size: 13px;">
+                {icon_span("check-circle", 16, "#059669")}
+                <span style="margin-left: 6px;">{len(st.session_state.recommended_actions)} loaded</span>
+            </div>
+            """, unsafe_allow_html=True)
 
     if fetch_actions or st.session_state.recommended_actions is None:
         with st.spinner("AI is analyzing conditions and parameterizing actions..."):
@@ -119,7 +134,12 @@ def main():
                 st.session_state.recommended_actions = result.get("actions", [])
             else:
                 # Demo data fallback
-                st.warning("Could not fetch from API. Showing demo actions.")
+                st.markdown(f"""
+                <div class="alert warning" style="display: flex; align-items: center; gap: 12px; margin-top: 16px;">
+                    {icon_span("alert-circle", 18, "#D97706")}
+                    <span>Could not fetch from API. Showing demo actions.</span>
+                </div>
+                """, unsafe_allow_html=True)
                 st.session_state.recommended_actions = [
                     {
                         "base_action_id": "H4_LAWN_BAN",
@@ -170,11 +190,16 @@ def main():
 
         # Individual action cards
         st.markdown('<div class="section">', unsafe_allow_html=True)
-        st.markdown('<h2 class="section-title">Action Details</h2>', unsafe_allow_html=True)
+        st.markdown(f"""
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+            {icon_span("zap", 20, "#2563EB")}
+            <h2 style="margin: 0;">Action Details</h2>
+        </div>
+        """, unsafe_allow_html=True)
 
         # Selection for simulation
         st.markdown("""
-        <p style="color: var(--text-muted); margin-bottom: 24px;">
+        <p style="color: var(--text-muted); margin-bottom: 24px; font-size: 14px;">
             Select actions to include in scenario simulation. All actions are selected by default.
         </p>
         """, unsafe_allow_html=True)
@@ -195,18 +220,21 @@ def main():
             # Show heuristic explanation
             heuristic_id = code.split("_")[0] if "_" in code else ""
             if heuristic_id in ["H1", "H2", "H3", "H4", "H5", "H6"]:
-                with st.expander(f"ℹ️ About {heuristic_id} Heuristic"):
+                with st.expander(f"About {heuristic_id} Heuristic"):
                     render_heuristic_explanation(heuristic_id)
 
         st.session_state.selected_actions = selected_codes
         st.markdown('</div>', unsafe_allow_html=True)
 
         # Simulation CTA
-        st.markdown("""
-        <div class="dark-section reveal fade-up">
+        st.markdown(f"""
+        <div class="dark-section fade-in">
             <div style="text-align: center; max-width: 600px; margin: 0 auto;">
-                <h2 style="margin-bottom: 16px;">Ready to Simulate</h2>
-                <p style="color: var(--accent-dark); margin-bottom: 32px;">
+                <div style="display: flex; justify-content: center; margin-bottom: 16px;">
+                    {icon_span("git-compare", 28, "#94A3B8")}
+                </div>
+                <h2 style="margin-bottom: 12px;">Ready to Simulate</h2>
+                <p style="color: var(--text-muted); margin-bottom: 24px;">
                     Compare the impact of selected actions against taking no action.
                 </p>
             </div>
@@ -215,18 +243,28 @@ def main():
 
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            if st.button(f"Run Simulation with {len(selected_codes)} Actions →",
+            if st.button(f"Run Simulation with {len(selected_codes)} Actions",
                          use_container_width=True, type="primary"):
                 st.switch_page("pages/3_simulation.py")
 
     else:
-        st.info("No actions have been recommended yet. Click the button above to get AI recommendations.")
+        st.markdown(f"""
+        <div class="alert info" style="display: flex; align-items: center; gap: 12px;">
+            {icon_span("info", 18, "#2563EB")}
+            <span>No actions have been recommended yet. Click the button above to get AI recommendations.</span>
+        </div>
+        """, unsafe_allow_html=True)
 
     # Heuristics reference
-    with st.expander("📖 Decision Heuristics Reference"):
+    with st.expander("Decision Heuristics Reference"):
+        st.markdown(f"""
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+            {icon_span("info", 18, "#2563EB")}
+            <strong>How Actions Are Selected</strong>
+        </div>
+        """, unsafe_allow_html=True)
+        
         st.markdown("""
-        ### How Actions Are Selected
-
         The system uses 6 fixed numeric heuristics to determine which actions to activate:
 
         | Heuristic | Trigger Condition | Impact Formula |
@@ -237,9 +275,16 @@ def main():
         | **H4** Non-Essential Restriction | SPI ≤ -1.8, Days < 30 | 1% removed → +1.3 days |
         | **H5** Source Reallocation | SPI ≤ -2.0, Days 15-30 | 5% increase → +5 days |
         | **H6** Severity Escalation | Threshold crossed | Combined × 0.8 |
-
-        ### AI Parameterization
-
+        """)
+        
+        st.markdown(f"""
+        <div style="margin-top: 24px; display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+            {icon_span("sparkles", 18, "#2563EB")}
+            <strong>AI Parameterization</strong>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
         The AI orchestrator:
         1. **Does NOT invent new actions** - only selects from the 15-action catalog
         2. **Adjusts parameters** within allowed ranges
@@ -253,10 +298,10 @@ def main():
     st.markdown("---")
     col1, col2, col3 = st.columns(3)
     with col1:
-        if st.button("← Risk Overview"):
+        if st.button("Risk Overview", type="secondary"):
             st.switch_page("pages/1_risk_overview.py")
     with col3:
-        if st.button("Run Simulation →"):
+        if st.button("Run Simulation", type="primary"):
             st.switch_page("pages/3_simulation.py")
 
 

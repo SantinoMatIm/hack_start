@@ -19,11 +19,12 @@ from components.simulation_chart import (
 )
 from components.risk_display import render_risk_metrics
 from utils.api_client import get_api_client
+from utils.icons import icon, icon_span
 
 # Page config
 st.set_page_config(
     page_title="Simulation | Water Risk Platform",
-    page_icon="🔮",
+    page_icon="💧",
     layout="wide",
 )
 
@@ -47,23 +48,22 @@ if "simulation_result" not in st.session_state:
 
 
 def main():
-    # Sidebar
-    zone_id, profile = render_zone_selector()
+    # Sidebar with navigation
+    zone_id, profile = render_zone_selector(current_page="simulation")
 
     # Additional simulation settings in sidebar
     with st.sidebar:
-        st.markdown("---")
-        st.markdown("### Simulation Settings")
+        st.markdown('<div class="sidebar-divider"></div>', unsafe_allow_html=True)
+        st.markdown(f"""
+        <div style="font-size: 10px; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; font-weight: 600; padding-left: 4px;">Settings</div>
+        """, unsafe_allow_html=True)
         projection_days = st.slider(
-            "Projection Period (days)",
+            "Projection (days)",
             min_value=30,
             max_value=180,
             value=90,
             step=15
         )
-
-    # Back button
-    render_back_button()
 
     # Header
     render_header(
@@ -77,26 +77,49 @@ def main():
     # Show current context
     col1, col2 = st.columns(2)
 
+    zone_icon = "building-2" if zone_id == "cdmx" else "factory"
+    profile_icon = "landmark" if profile == "government" else "briefcase"
+    zone_display = "Mexico City" if zone_id == "cdmx" else "Monterrey"
+
     with col1:
-        st.markdown("""
-        <div style="background: var(--bg-surface); padding: 24px; border: 1px solid var(--border-default);">
-            <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 8px;">Zone</div>
-            <div style="font-size: 24px; font-weight: 700;">{}</div>
+        st.markdown(f"""
+        <div class="stat-card fade-in">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: var(--bg-muted); border-radius: 8px;">
+                    {icon(zone_icon, 20, "#475569")}
+                </div>
+                <div>
+                    <div class="stat-label">Zone</div>
+                    <div style="font-size: 20px; font-weight: 600; color: var(--text-primary);">{zone_display}</div>
+                </div>
+            </div>
         </div>
-        """.format(zone_id.upper()), unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
     with col2:
-        st.markdown("""
-        <div style="background: var(--bg-surface); padding: 24px; border: 1px solid var(--border-default);">
-            <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 8px;">Profile</div>
-            <div style="font-size: 24px; font-weight: 700;">{}</div>
+        st.markdown(f"""
+        <div class="stat-card fade-in" style="animation-delay: 50ms;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: var(--bg-muted); border-radius: 8px;">
+                    {icon(profile_icon, 20, "#475569")}
+                </div>
+                <div>
+                    <div class="stat-label">Profile</div>
+                    <div style="font-size: 20px; font-weight: 600; color: var(--text-primary);">{profile.title()}</div>
+                </div>
+            </div>
         </div>
-        """.format(profile.title()), unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
     # Current risk context
     if st.session_state.current_risk:
         st.markdown('<div class="section">', unsafe_allow_html=True)
-        st.markdown('<h3>Current Risk Status</h3>', unsafe_allow_html=True)
+        st.markdown(f"""
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+            {icon_span("activity", 18, "#2563EB")}
+            <h3 style="margin: 0;">Current Risk Status</h3>
+        </div>
+        """, unsafe_allow_html=True)
         render_risk_metrics(st.session_state.current_risk)
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -107,21 +130,33 @@ def main():
 
     if selected_actions:
         st.markdown(f"""
-        <div style="background: var(--bg-surface); padding: 20px; border: 1px solid var(--border-default); margin-bottom: 24px;">
-            <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 8px;">
-                Selected Actions for Simulation
-            </div>
-            <div style="font-size: 18px; font-weight: 600;">
-                {len(selected_actions)} action{'s' if len(selected_actions) != 1 else ''}: {', '.join(selected_actions)}
+        <div class="card fade-in" style="margin-bottom: 24px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: var(--accent-primary-light); border-radius: 8px;">
+                    {icon("zap", 20, "#2563EB")}
+                </div>
+                <div>
+                    <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted);">
+                        Selected Actions for Simulation
+                    </div>
+                    <div style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin-top: 2px;">
+                        {len(selected_actions)} action{'s' if len(selected_actions) != 1 else ''}: {', '.join(selected_actions[:3])}{'...' if len(selected_actions) > 3 else ''}
+                    </div>
+                </div>
             </div>
         </div>
         """, unsafe_allow_html=True)
     else:
-        st.info("No specific actions selected. Simulation will use all recommended actions.")
+        st.markdown(f"""
+        <div class="alert info" style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
+            {icon_span("info", 18, "#2563EB")}
+            <span>No specific actions selected. Simulation will use all recommended actions.</span>
+        </div>
+        """, unsafe_allow_html=True)
 
     # Run simulation button
     run_simulation = st.button(
-        "🚀 Run Simulation",
+        "Run Simulation",
         type="primary",
         use_container_width=True
     )
@@ -139,7 +174,12 @@ def main():
                 st.session_state.simulation_result = result
             else:
                 # Demo fallback
-                st.warning("Could not connect to API. Showing demo simulation.")
+                st.markdown(f"""
+                <div class="alert warning" style="display: flex; align-items: center; gap: 12px; margin-top: 16px;">
+                    {icon_span("alert-circle", 18, "#D97706")}
+                    <span>Could not connect to API. Showing demo simulation.</span>
+                </div>
+                """, unsafe_allow_html=True)
                 current_spi = st.session_state.current_risk.get("spi_6m", -1.72) if st.session_state.current_risk else -1.72
 
                 st.session_state.simulation_result = {
@@ -172,7 +212,12 @@ def main():
 
     if simulation:
         st.markdown('<div class="section">', unsafe_allow_html=True)
-        st.markdown('<h2 class="section-title">Simulation Results</h2>', unsafe_allow_html=True)
+        st.markdown(f"""
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+            {icon_span("git-compare", 20, "#2563EB")}
+            <h2 style="margin: 0;">Simulation Results</h2>
+        </div>
+        """, unsafe_allow_html=True)
 
         # Comparison cards
         render_simulation_comparison(simulation)
@@ -194,26 +239,44 @@ def main():
         render_decision_summary(simulation, zone_id, profile)
 
         # Detailed results expander
-        with st.expander("📊 Detailed Simulation Data"):
+        with st.expander("Detailed Simulation Data"):
             col1, col2 = st.columns(2)
 
             with col1:
-                st.markdown("### No-Action Scenario")
+                st.markdown(f"""
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                    {icon_span("x-circle", 16, "#DC2626")}
+                    <strong>No-Action Scenario</strong>
+                </div>
+                """, unsafe_allow_html=True)
                 no_action = simulation.get("no_action_scenario", {})
                 st.json(no_action)
 
             with col2:
-                st.markdown("### With-Action Scenario")
+                st.markdown(f"""
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                    {icon_span("check-circle", 16, "#059669")}
+                    <strong>With-Action Scenario</strong>
+                </div>
+                """, unsafe_allow_html=True)
                 with_action = simulation.get("with_action_scenario", {})
                 st.json(with_action)
 
             if simulation.get("actions_applied"):
-                st.markdown("### Actions Applied")
+                st.markdown(f"""
+                <div style="display: flex; align-items: center; gap: 8px; margin: 24px 0 12px;">
+                    {icon_span("zap", 16, "#2563EB")}
+                    <strong>Actions Applied</strong>
+                </div>
+                """, unsafe_allow_html=True)
                 st.json(simulation["actions_applied"])
 
         # Decision prompt
-        st.markdown("""
-        <div class="section reveal fade-up" style="text-align: center; padding: 48px 0;">
+        st.markdown(f"""
+        <div class="section fade-in" style="text-align: center; padding: 48px 0;">
+            <div style="display: flex; justify-content: center; margin-bottom: 16px;">
+                {icon_span("check-circle", 32, "#2563EB")}
+            </div>
             <h2>Make Your Decision</h2>
             <p style="color: var(--text-muted); max-width: 600px; margin: 16px auto 32px;">
                 Based on the simulation results, you can proceed with implementing the recommended actions
@@ -225,33 +288,40 @@ def main():
         col1, col2, col3 = st.columns([1, 1, 1])
 
         with col1:
-            if st.button("← Modify Actions", use_container_width=True):
+            if st.button("Modify Actions", use_container_width=True, type="secondary"):
                 st.switch_page("pages/2_actions.py")
 
         with col2:
-            if st.button("🔄 Re-run Simulation", use_container_width=True):
+            if st.button("Re-run Simulation", use_container_width=True, type="secondary"):
                 st.session_state.simulation_result = None
                 st.rerun()
 
         with col3:
-            if st.button("✅ Confirm Decision", use_container_width=True, type="primary"):
+            if st.button("Confirm Decision", use_container_width=True, type="primary"):
                 st.success("Decision confirmed! Actions have been logged for implementation tracking.")
                 st.balloons()
 
     else:
         # No simulation yet
-        st.markdown("""
+        st.markdown(f"""
         <div style="text-align: center; padding: 64px 0; color: var(--text-muted);">
-            <div style="font-size: 48px; margin-bottom: 16px;">🔮</div>
-            <p style="font-size: 18px;">Click "Run Simulation" to compare scenarios</p>
+            <div style="display: flex; justify-content: center; margin-bottom: 16px;">
+                {icon_span("play-circle", 48, "#94A3B8")}
+            </div>
+            <p style="font-size: 17px;">Click "Run Simulation" to compare scenarios</p>
         </div>
         """, unsafe_allow_html=True)
 
     # Methodology reference
-    with st.expander("📖 Simulation Methodology"):
+    with st.expander("Simulation Methodology"):
+        st.markdown(f"""
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+            {icon_span("info", 18, "#2563EB")}
+            <strong>How Simulations Work</strong>
+        </div>
+        """, unsafe_allow_html=True)
+        
         st.markdown("""
-        ### How Simulations Work
-
         **No-Action Scenario:**
         - Projects SPI based on current trend
         - Uses historical decline rates
@@ -261,9 +331,16 @@ def main():
         - Applies impact formulas from each action
         - Calculates combined effect on water availability
         - Estimates extended days to critical
-
-        ### Impact Calculation
-
+        """)
+        
+        st.markdown(f"""
+        <div style="margin-top: 24px; display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+            {icon_span("bar-chart-3", 18, "#2563EB")}
+            <strong>Impact Calculation</strong>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
         Each action has a defined impact formula:
 
         | Action Type | Impact Formula |
@@ -278,9 +355,16 @@ def main():
         When multiple actions are combined under severity escalation,
         effects are summed with a 20% efficiency penalty:
         `(Effect A + Effect B) × 0.8`
-
-        ### Important Notes
-
+        """)
+        
+        st.markdown(f"""
+        <div style="margin-top: 24px; display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+            {icon_span("alert-circle", 18, "#D97706")}
+            <strong>Important Notes</strong>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
         - Simulations are projections based on historical patterns
         - Actual results may vary based on implementation effectiveness
         - Regular re-assessment is recommended as conditions change
@@ -290,13 +374,13 @@ def main():
     st.markdown("---")
     col1, col2, col3 = st.columns(3)
     with col1:
-        if st.button("← View Actions"):
+        if st.button("View Actions", type="secondary"):
             st.switch_page("pages/2_actions.py")
     with col2:
-        if st.button("🏠 Back to Home"):
+        if st.button("Back to Home", type="secondary"):
             st.switch_page("app.py")
     with col3:
-        if st.button("📊 Risk Overview"):
+        if st.button("Risk Overview", type="secondary"):
             st.switch_page("pages/1_risk_overview.py")
 
 

@@ -5,6 +5,12 @@ Main Streamlit application entry point
 
 import streamlit as st
 from pathlib import Path
+import sys
+
+# Add utils to path for icon imports
+sys.path.insert(0, str(Path(__file__).parent))
+
+from utils.icons import icon, icon_span
 
 # Page configuration
 st.set_page_config(
@@ -14,38 +20,117 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# Fix sidebar collapse/expand buttons - consistent styling for both
+st.markdown("""
+<style>
+/* ==========================================
+   UNIFIED SIDEBAR TOGGLE BUTTON STYLING
+   ========================================== */
+
+/* COLLAPSE BUTTON (<<) - when sidebar is open */
+[data-testid="stSidebarCollapseButton"] {
+    opacity: 1 !important;
+    visibility: visible !important;
+    background: #FFFFFF !important;
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 10px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important;
+    padding: 8px !important;
+    outline: none !important;
+}
+
+[data-testid="stSidebarCollapseButton"]:hover {
+    background: #F8FAFC !important;
+    border-color: #CBD5E1 !important;
+}
+
+[data-testid="stSidebarCollapseButton"]:not(:hover) {
+    opacity: 1 !important;
+}
+
+[data-testid="stSidebarCollapseButton"] svg,
+[data-testid="stSidebarCollapseButton"] svg * {
+    stroke: #64748B !important;
+    color: #64748B !important;
+}
+
+/* EXPAND BUTTON (>>) - when sidebar is collapsed */
+[data-testid="collapsedControl"] {
+    opacity: 1 !important;
+    visibility: visible !important;
+    background: #FFFFFF !important;
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 10px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important;
+    padding: 8px !important;
+    outline: none !important;
+}
+
+[data-testid="collapsedControl"]:hover {
+    background: #F8FAFC !important;
+    border-color: #CBD5E1 !important;
+}
+
+[data-testid="collapsedControl"]:not(:hover) {
+    opacity: 1 !important;
+}
+
+[data-testid="collapsedControl"] svg,
+[data-testid="collapsedControl"] svg * {
+    stroke: #64748B !important;
+    color: #64748B !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # Load custom CSS
 def load_css():
     css_file = Path(__file__).parent / "assets" / "styles.css"
     if css_file.exists():
         with open(css_file) as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    
+    # Fix sidebar toggle button icon - make it BLACK and visible
+    # Using very broad selectors and invert filter as fallback
+    st.markdown("""
+    <style>
+    /* NUCLEAR OPTION: Target ANY button with SVG near the top-left area */
+    /* This targets the Streamlit sidebar toggle specifically */
+    
+    /* Method 1: Direct filter to invert light icons to dark */
+    [data-testid="collapsedControl"] svg,
+    [data-testid="baseButton-headerNoPadding"] svg,
+    .stApp > div:first-child button svg,
+    header button svg,
+    [data-testid="stHeader"] button svg {
+        filter: invert(1) brightness(0) !important;
+    }
+    
+    /* Method 2: Style the button container */
+    [data-testid="collapsedControl"],
+    [data-testid="baseButton-headerNoPadding"] {
+        background: #F1F5F9 !important;
+        border: 1px solid #CBD5E1 !important;
+        border-radius: 8px !important;
+    }
+    
+    /* Method 3: Target by class patterns Streamlit uses */
+    button[class*="emotion"][class*="header"] svg,
+    div[class*="emotion"][class*="collapse"] svg {
+        filter: invert(1) brightness(0) !important;
+    }
+    
+    /* Method 4: Any SVG in header area */
+    [data-testid="stHeader"] svg,
+    [data-testid="stHeader"] svg * {
+        stroke: #0F172A !important;
+        fill: #0F172A !important;
+        color: #0F172A !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
 load_css()
-
-# Load animations
-def load_animations():
-    js_file = Path(__file__).parent / "assets" / "animations.js"
-    if js_file.exists():
-        with open(js_file) as f:
-            st.markdown(f"<script>{f.read()}</script>", unsafe_allow_html=True)
-
-# Inject animation observer
-st.markdown("""
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                entry.target.classList.add('revealed');
-            }
-        });
-    }, { threshold: 0.1 });
-
-    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
-});
-</script>
-""", unsafe_allow_html=True)
 
 # Session state initialization
 if "selected_zone" not in st.session_state:
@@ -60,139 +145,136 @@ if "simulation_result" not in st.session_state:
     st.session_state.simulation_result = None
 
 
+def render_sidebar():
+    """Render the sidebar with zone/profile selection"""
+    with st.sidebar:
+        # Logo and title
+        st.markdown(f"""
+        <div style="text-align: center; margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid rgba(226, 232, 240, 0.6);">
+            <div style="display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; background: linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, rgba(124, 58, 237, 0.08) 100%); border-radius: 12px; margin-bottom: 12px;">
+                {icon("droplets", 24, "#2563EB")}
+            </div>
+            <div style="font-size: 15px; font-weight: 700; color: #0F172A; letter-spacing: -0.01em;">Water Risk</div>
+            <div style="font-size: 11px; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.1em;">Intelligence Platform</div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Zone & Profile Selection
+        st.markdown("""
+        <div style="font-size: 10px; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; font-weight: 600; padding-left: 4px;">Configuration</div>
+        """, unsafe_allow_html=True)
+        
+        zone = st.selectbox(
+            "Zone",
+            ["cdmx", "monterrey"],
+            index=0 if st.session_state.selected_zone == "cdmx" else 1,
+            format_func=lambda x: "Mexico City" if x == "cdmx" else "Monterrey",
+            key="sidebar_zone"
+        )
+        if zone != st.session_state.selected_zone:
+            st.session_state.selected_zone = zone
+            st.session_state.current_risk = None
+            st.rerun()
+        
+        profile = st.selectbox(
+            "Profile",
+            ["government", "industry"],
+            index=0 if st.session_state.selected_profile == "government" else 1,
+            format_func=lambda x: x.title(),
+            key="sidebar_profile"
+        )
+        if profile != st.session_state.selected_profile:
+            st.session_state.selected_profile = profile
+            st.session_state.recommended_actions = None
+            st.rerun()
+
+
 def main():
+    # Render sidebar
+    render_sidebar()
+    
     # Hero Section
-    st.markdown("""
+    st.markdown(f"""
     <div class="hero-section">
-        <div class="hero-content reveal fade-up">
-            <h1 class="display-text">Water Risk<br/>Intelligence</h1>
-            <p class="body-large">Transform climate data into operational decisions.<br/>
-            Prioritize actions. Simulate outcomes. Act with confidence.</p>
+        <div class="hero-content fade-in-up">
+            <div class="hero-badge">
+                {icon_span("droplets", 14, "#2563EB")}
+                <span>Decision Intelligence</span>
+            </div>
+            <h1 class="display-text">Water Risk Intelligence</h1>
+            <p class="body-large">Transform climate data into operational decisions. Prioritize actions. Simulate outcomes.</p>
+            <div class="hero-stats">
+                <div class="hero-stat">
+                    <span class="hero-stat-value">6</span>
+                    <span class="hero-stat-label">Heuristics</span>
+                </div>
+                <div class="hero-stat-divider"></div>
+                <div class="hero-stat">
+                    <span class="hero-stat-value">15</span>
+                    <span class="hero-stat-label">Actions</span>
+                </div>
+                <div class="hero-stat-divider"></div>
+                <div class="hero-stat">
+                    <span class="hero-stat-value">2</span>
+                    <span class="hero-stat-label">Zones</span>
+                </div>
+            </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-    # Zone Selection
-    st.markdown('<div class="section reveal fade-up">', unsafe_allow_html=True)
-    st.markdown('<h2 class="section-title">Select Zone</h2>', unsafe_allow_html=True)
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        zone_selected = st.button(
-            "🏙️ Mexico City (CDMX)",
-            key="btn_cdmx",
-            use_container_width=True,
-            type="primary" if st.session_state.selected_zone == "cdmx" else "secondary"
-        )
-        if zone_selected:
-            st.session_state.selected_zone = "cdmx"
-            st.session_state.current_risk = None
-            st.rerun()
-
-    with col2:
-        zone_selected = st.button(
-            "🏭 Monterrey",
-            key="btn_monterrey",
-            use_container_width=True,
-            type="primary" if st.session_state.selected_zone == "monterrey" else "secondary"
-        )
-        if zone_selected:
-            st.session_state.selected_zone = "monterrey"
-            st.session_state.current_risk = None
-            st.rerun()
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # Profile Selection
-    st.markdown('<div class="section reveal fade-up">', unsafe_allow_html=True)
-    st.markdown('<h2 class="section-title">Select Profile</h2>', unsafe_allow_html=True)
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        if st.button(
-            "🏛️ Government",
-            key="btn_gov",
-            use_container_width=True,
-            type="primary" if st.session_state.selected_profile == "government" else "secondary"
-        ):
-            st.session_state.selected_profile = "government"
-            st.session_state.recommended_actions = None
-            st.rerun()
-        st.caption("Prioritizes: Impact + Urgency")
-
-    with col2:
-        if st.button(
-            "🏢 Industry",
-            key="btn_industry",
-            use_container_width=True,
-            type="primary" if st.session_state.selected_profile == "industry" else "secondary"
-        ):
-            st.session_state.selected_profile = "industry"
-            st.session_state.recommended_actions = None
-            st.rerun()
-        st.caption("Prioritizes: Impact + Cost")
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # Current Selection Display
-    st.markdown(f"""
-    <div class="selection-badge reveal fade-up">
-        <span class="badge-item">Zone: <strong>{st.session_state.selected_zone.upper()}</strong></span>
-        <span class="badge-divider">|</span>
-        <span class="badge-item">Profile: <strong>{st.session_state.selected_profile.title()}</strong></span>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Navigation Cards
-    st.markdown('<div class="section reveal fade-up">', unsafe_allow_html=True)
-    st.markdown('<h2 class="section-title">Decision Workflow</h2>', unsafe_allow_html=True)
-
+    # Decision Workflow - Cards with integrated buttons
     col1, col2, col3 = st.columns(3)
-
+    
     with col1:
-        st.markdown("""
-        <div class="nav-card">
-            <div class="nav-card-number">01</div>
-            <h3>Risk Overview</h3>
-            <p>View current SPI, risk level, trend, and days to critical threshold.</p>
+        st.markdown(f"""
+        <div style="background: #FFFFFF; border: 1px solid rgba(226, 232, 240, 0.8); border-radius: 16px 16px 0 0; padding: 24px; text-align: center;">
+            <div style="display: inline-flex; align-items: center; justify-content: center; width: 52px; height: 52px; background: #DBEAFE; border-radius: 14px; margin-bottom: 16px;">
+                {icon("bar-chart-3", 24, "#2563EB")}
+            </div>
+            <h3 style="font-size: 16px; font-weight: 600; color: #0F172A; margin: 0 0 8px 0;">Risk Overview</h3>
+            <p style="font-size: 13px; color: #64748B; margin: 0; line-height: 1.5;">Current SPI, risk level, and time to critical threshold</p>
         </div>
         """, unsafe_allow_html=True)
         if st.button("View Risk →", key="nav_risk", use_container_width=True):
             st.switch_page("pages/1_risk_overview.py")
-
+    
     with col2:
-        st.markdown("""
-        <div class="nav-card">
-            <div class="nav-card-number">02</div>
-            <h3>Recommended Actions</h3>
-            <p>AI-parameterized actions based on current conditions and profile.</p>
+        st.markdown(f"""
+        <div style="background: #FFFFFF; border: 1px solid rgba(226, 232, 240, 0.8); border-radius: 16px 16px 0 0; padding: 24px; text-align: center;">
+            <div style="display: inline-flex; align-items: center; justify-content: center; width: 52px; height: 52px; background: #DBEAFE; border-radius: 14px; margin-bottom: 16px;">
+                {icon("zap", 24, "#2563EB")}
+            </div>
+            <h3 style="font-size: 16px; font-weight: 600; color: #0F172A; margin: 0 0 8px 0;">Actions</h3>
+            <p style="font-size: 13px; color: #64748B; margin: 0; line-height: 1.5;">AI-parameterized interventions based on conditions</p>
         </div>
         """, unsafe_allow_html=True)
         if st.button("View Actions →", key="nav_actions", use_container_width=True):
             st.switch_page("pages/2_actions.py")
-
+    
     with col3:
-        st.markdown("""
-        <div class="nav-card">
-            <div class="nav-card-number">03</div>
-            <h3>Simulation</h3>
-            <p>Compare act vs. not-act scenarios with quantified outcomes.</p>
+        st.markdown(f"""
+        <div style="background: #FFFFFF; border: 1px solid rgba(226, 232, 240, 0.8); border-radius: 16px 16px 0 0; padding: 24px; text-align: center;">
+            <div style="display: inline-flex; align-items: center; justify-content: center; width: 52px; height: 52px; background: #DBEAFE; border-radius: 14px; margin-bottom: 16px;">
+                {icon("git-compare", 24, "#2563EB")}
+            </div>
+            <h3 style="font-size: 16px; font-weight: 600; color: #0F172A; margin: 0 0 8px 0;">Simulation</h3>
+            <p style="font-size: 13px; color: #64748B; margin: 0; line-height: 1.5;">Compare scenarios with quantified projections</p>
         </div>
         """, unsafe_allow_html=True)
         if st.button("Run Simulation →", key="nav_sim", use_container_width=True):
             st.switch_page("pages/3_simulation.py")
 
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # Footer
-    st.markdown("""
-    <div class="footer-section">
-        <div class="footer-content reveal fade-up">
-            <p class="footer-tagline">Decision Intelligence for Water Risk</p>
-            <p class="footer-subtitle">Pilot zones: Mexico City • Monterrey</p>
+    # Footer - Light theme to match page
+    st.markdown(f"""
+    <div style="margin-top: 64px; padding: 32px 24px; text-align: center; border-top: 1px solid rgba(226, 232, 240, 0.8);">
+        <div style="display: flex; justify-content: center; margin-bottom: 12px;">
+            <div style="display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; background: linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, rgba(124, 58, 237, 0.08) 100%); border-radius: 10px;">
+                {icon("droplets", 18, "#2563EB")}
+            </div>
         </div>
+        <p style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: #64748B; margin: 0 0 4px 0;">Decision Intelligence for Water Risk</p>
+        <p style="font-size: 13px; color: #94A3B8; margin: 0;">Mexico City • Monterrey</p>
     </div>
     """, unsafe_allow_html=True)
 
