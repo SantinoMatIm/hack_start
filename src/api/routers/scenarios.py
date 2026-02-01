@@ -11,6 +11,7 @@ from src.api.schemas.simulation import (
     ScenarioResult,
     ScenarioComparison,
     TrajectoryPoint,
+    ActionApplied,
 )
 
 router = APIRouter(prefix="/scenarios", tags=["scenarios"])
@@ -28,117 +29,86 @@ def simulate_scenarios(
     Args:
         request: Zone ID, action codes, and projection days
     """
-    # Check for demo mode
-    try:
-        settings = get_settings()
-        if settings.is_demo_mode:
-            zone_id = request.zone_id.lower()
-            demo_risk = {
-                "cdmx": {"spi": -1.72, "risk_level": "HIGH", "trend": "WORSENING", "days_to_critical": 24},
-                "monterrey": {"spi": -1.45, "risk_level": "HIGH", "trend": "STABLE", "days_to_critical": 38},
-            }
+    # Simulation requires real data from database
+    settings = get_settings()
+    if settings.is_demo_mode:
+        raise HTTPException(
+            status_code=400,
+            detail="Simulation requires database. Configure DATABASE_URL and run ingestion to use real zone and risk data.",
+        )
 
-            if zone_id not in demo_risk:
-                raise HTTPException(status_code=404, detail=f"Zone '{request.zone_id}' not found")
-
-            risk = demo_risk[zone_id]
-            current_spi = risk["spi"]
-            days_to_critical = risk["days_to_critical"]
-
-            # Generate demo trajectory
-            projection_days = request.projection_days
-            no_action_trajectory = []
-            with_action_trajectory = []
-
-            for day in range(0, projection_days + 1, 10):
-                # No action: SPI decreases
-                no_action_spi = current_spi - (0.02 * day)
-                no_action_trajectory.append(TrajectoryPoint(day=day, spi=round(no_action_spi, 2)))
-
-                # With action: SPI decreases slower
-                with_action_spi = current_spi - (0.008 * day)
-                with_action_trajectory.append(TrajectoryPoint(day=day, spi=round(with_action_spi, 2)))
-
-            return SimulationResponse(
-                zone_id=zone_id,
-                no_action=ScenarioResult(
-                    ending_spi=round(current_spi - 0.4, 2),
-                    ending_risk_level="CRITICAL",
-                    days_to_critical=days_to_critical,
-                    trajectory=no_action_trajectory,
-                ),
-                with_action=ScenarioResult(
-                    ending_spi=round(current_spi - 0.15, 2),
-                    ending_risk_level="HIGH",
-                    days_to_critical=days_to_critical + 28,
-                    trajectory=with_action_trajectory,
-                ),
-                comparison=ScenarioComparison(
-                    days_gained=28,
-                    spi_improvement=0.25,
-                    risk_level_change="CRITICAL → HIGH",
-                    actions_count=len(request.action_codes) if request.action_codes else 3,
-                ),
-                summary=f"Implementing the recommended actions extends the time to critical threshold by 28 days, improving projected conditions from CRITICAL to HIGH risk level.",
-            )
-    except HTTPException:
-        raise
-    except Exception:
-        pass
-
-    # Full database mode
-    import re
+    # Database mode - everything from DB
+    import uuid as uuid_mod
     from src.db.connection import get_session
-    from src.db.models import Zone, RiskSnapshot, Action
+    from src.db.models import Zone, RiskSnapshot, ActionInstance
     from src.simulation.delta_calculator import DeltaCalculator
+
+    if not request.action_instance_ids:
+        raise HTTPException(
+            status_code=400,
+            detail="Select at least one action from the Actions page to simulate.",
+        )
 
     session = next(get_session())
 
-    # Get zone
+    # Get zone (DB)
     zone = session.query(Zone).filter(Zone.slug == request.zone_id).first()
     if not zone:
         raise HTTPException(status_code=404, detail=f"Zone '{request.zone_id}' not found")
 
-    # Get latest risk snapshot
+    # Get latest risk snapshot (DB)
     snapshot = (
         session.query(RiskSnapshot)
         .filter(RiskSnapshot.zone_id == zone.id)
         .order_by(RiskSnapshot.created_at.desc())
         .first()
     )
-
     if not snapshot:
         raise HTTPException(
             status_code=400,
             detail=f"No risk assessment available for zone '{request.zone_id}'.",
         )
 
-    # Get actions
+    # Fetch ActionInstances by ID (DB only - no impact_formula, no fallback)
     actions_data = []
-    for code in request.action_codes:
-        action = session.query(Action).filter(Action.code == code).first()
-        if action:
-            days_match = re.search(
-                r'[+]?(\d+(?:\.\d+)?)\s*days',
-                action.impact_formula.lower(),
-            )
-            days_gained = float(days_match.group(1)) if days_match else 0
+    actions_applied_list = []
 
-            actions_data.append({
-                "action_code": action.code,
-                "title": action.title,
-                "impact_formula": action.impact_formula,
-                "urgency_days": action.default_urgency_days,
-                "expected_effect": {
-                    "days_gained": days_gained,
-                    "confidence": "estimated",
-                },
-            })
+    for ai_id_str in request.action_instance_ids:
+        try:
+            ai_id = uuid_mod.UUID(ai_id_str)
+        except ValueError:
+            continue
+
+        ai = (
+            session.query(ActionInstance)
+            .filter(
+                ActionInstance.id == ai_id,
+                ActionInstance.zone_id == zone.id,
+            )
+            .first()
+        )
+        if not ai or not ai.expected_effect:
+            continue
+
+        days_gained = float(ai.expected_effect.get("days_gained", 0) or 0)
+        actions_data.append({
+            "action_code": ai.base_action.code,
+            "action_instance_id": str(ai.id),
+            "title": ai.base_action.title,
+            "urgency_days": ai.base_action.default_urgency_days,
+            "expected_effect": {
+                "days_gained": days_gained,
+                "confidence": ai.expected_effect.get("confidence", "ai_parameterized"),
+            },
+        })
+        actions_applied_list.append(
+            ActionApplied(code=ai.base_action.code, title=ai.base_action.title, days_gained=days_gained)
+        )
 
     if not actions_data:
         raise HTTPException(
             status_code=400,
-            detail="No valid actions found for the provided codes.",
+            detail="No valid ActionInstances found. Get recommended actions from the Actions page first.",
         )
 
     # Parse trend
@@ -216,4 +186,5 @@ def simulate_scenarios(
             actions_count=comparison["actions_count"],
         ),
         summary=summary,
+        actions_applied=actions_applied_list,
     )

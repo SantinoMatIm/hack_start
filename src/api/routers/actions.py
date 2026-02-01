@@ -367,6 +367,7 @@ def get_recommended_actions(
         session.flush()  # Get action_instance.id for linking in simulations
 
         parameterized_actions.append(RecommendedActionResponse(
+            action_instance_id=str(action_instance.id),
             action_code=result.action_code,
             title=action.title,
             description=action.description,

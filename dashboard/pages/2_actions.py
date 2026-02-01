@@ -197,23 +197,29 @@ def main():
         </div>
         """, unsafe_allow_html=True)
 
-        # Selection for simulation
+        # Selection for simulation (action_instance_id required - from DB)
         st.markdown("""
         <p style="color: var(--text-muted); margin-bottom: 24px; font-size: 14px;">
             Select actions to include in scenario simulation. All actions are selected by default.
         </p>
         """, unsafe_allow_html=True)
 
-        selected_codes = []
+        selected_for_sim = []  # list of {action_instance_id, code, title}
 
         for i, action in enumerate(actions):
             code = action.get("code", action.get("base_action_id", f"action_{i}"))
+            ai_id = action.get("action_instance_id")
+            key = ai_id or f"code_{code}_{i}"
 
             col1, col2 = st.columns([0.05, 0.95])
             with col1:
-                selected = st.checkbox("", value=True, key=f"select_{code}", label_visibility="collapsed")
-                if selected:
-                    selected_codes.append(code)
+                selected = st.checkbox("", value=True, key=f"select_{key}", label_visibility="collapsed")
+                if selected and ai_id:
+                    selected_for_sim.append({
+                        "action_instance_id": ai_id,
+                        "code": code,
+                        "title": action.get("title", code),
+                    })
             with col2:
                 render_action_card(action, i)
 
@@ -223,7 +229,7 @@ def main():
                 with st.expander(f"About {heuristic_id} Heuristic"):
                     render_heuristic_explanation(heuristic_id)
 
-        st.session_state.selected_actions = selected_codes
+        st.session_state.selected_actions = selected_for_sim
         st.markdown('</div>', unsafe_allow_html=True)
 
         # Simulation CTA
@@ -243,7 +249,7 @@ def main():
 
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            if st.button(f"Run Simulation with {len(selected_codes)} Actions",
+            if st.button(f"Run Simulation with {len(selected_for_sim)} Actions",
                          use_container_width=True, type="primary"):
                 st.switch_page("pages/3_simulation.py")
 

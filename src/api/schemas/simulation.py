@@ -35,8 +35,16 @@ class SimulationRequest(BaseModel):
     """Request schema for simulation."""
 
     zone_id: str
-    action_codes: list[str]
+    action_instance_ids: list[str]  # UUIDs of ActionInstances (from recommended actions)
     projection_days: int = 90
+
+
+class ActionApplied(BaseModel):
+    """Action with its simulated impact."""
+
+    code: str
+    title: str
+    days_gained: float
 
 
 class SimulationResponse(BaseModel):
@@ -47,3 +55,4 @@ class SimulationResponse(BaseModel):
     with_action: ScenarioResult
     comparison: ScenarioComparison
     summary: str  # Human-readable summary
+    actions_applied: list[ActionApplied] = []  # Per-action impact for dashboard
