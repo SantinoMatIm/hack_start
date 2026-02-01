@@ -42,13 +42,23 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
+    url = get_url()
+    if not url:
+        raise RuntimeError("DATABASE_URL not set. Configure .env before running migrations.")
+
+    # Supabase pooler (port 6543) often hangs with Alembic. Use direct connection (port 5432).
+    if "pooler.supabase.com" in url and ":6543" in url:
+        print("\n*** WARNING: Pooler URL detected. Migrations may hang. ***")
+        print("Use direct connection for migrations:")
+        print("  postgresql://postgres:PASSWORD@db.PROJECT_REF.supabase.co:5432/postgres")
+        print("  (Get it from Supabase Dashboard > Project Settings > Database)\n")
+
     configuration = config.get_section(config.config_ini_section)
-    configuration["sqlalchemy.url"] = get_url()
+    configuration["sqlalchemy.url"] = url
     connectable = engine_from_config(
         configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
-        connect_args={"options": "-c statement_timeout=60000"},  # 60 seconds timeout
     )
 
     with connectable.connect() as connection:
