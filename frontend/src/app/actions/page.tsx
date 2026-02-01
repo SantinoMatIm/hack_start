@@ -34,15 +34,15 @@ import {
 
 // Demo recommended actions for fallback
 const DEMO_ACTIONS: RecommendedActionsResponse = {
-  zone_id: 'cdmx',
+  zone_id: 'texas',
   profile: 'government',
   context: {
-    spi: -1.72,
+    spi: -1.55,
     risk_level: 'HIGH',
     trend: 'WORSENING',
-    days_to_critical: 24,
+    days_to_critical: 32,
     profile: 'government',
-    zone: 'cdmx',
+    zone: 'texas',
   },
   activated_heuristics: [
     { id: 'H4', priority: 1, actions_count: 2 },
@@ -99,7 +99,7 @@ interface SelectedAction {
 export default function ActionsPage() {
   const router = useRouter();
   const [zones, setZones] = useState<Zone[]>(DEMO_ZONES);
-  const [selectedZone, setSelectedZone] = useState<string>('cdmx');
+  const [selectedZone, setSelectedZone] = useState<string>('texas');
   const [selectedProfile, setSelectedProfile] = useState<Profile>('government');
   const [recommendations, setRecommendations] = useState<RecommendedActionsResponse | null>(null);
   const [selectedActions, setSelectedActions] = useState<Map<string, SelectedAction>>(new Map());

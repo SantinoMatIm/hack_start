@@ -65,11 +65,11 @@ interface StoredAction {
 
 // Demo simulation response
 const DEMO_SIMULATION: SimulationResponse = {
-  zone_id: 'cdmx',
+  zone_id: 'texas',
   no_action: {
     ending_spi: -2.15,
     ending_risk_level: 'CRITICAL',
-    days_to_critical: 24,
+    days_to_critical: 32,
     trajectory: Array.from({ length: 90 }, (_, i) => ({
       day: i + 1,
       projected_spi: -1.72 - (i * 0.005),

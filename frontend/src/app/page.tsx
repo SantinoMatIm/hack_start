@@ -342,9 +342,12 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="border-t py-10 bg-secondary/30">
         <div className="container text-center">
-          <div className="flex items-center justify-center gap-2 mb-3">
-            <Droplets className="h-5 w-5 text-primary" />
-            <span className="font-semibold">Water Risk Platform</span>
+          <div className="flex items-center justify-center mb-3">
+            <img 
+              src="/logo.png" 
+              alt="Axis" 
+              className="h-8 w-auto"
+            />
           </div>
           <p className="text-sm text-muted-foreground">
             Energy Infrastructure Water Risk Intelligence

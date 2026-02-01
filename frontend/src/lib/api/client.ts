@@ -115,8 +115,18 @@ export async function getHealth(): Promise<HealthResponse> {
 
 // ============ Zones ============
 
+// MVP: Only Texas has functional data - filter API response
+const MVP_ALLOWED_ZONES = ['texas'];
+
 export async function getZones(): Promise<ZoneListResponse> {
-  return fetchApi<ZoneListResponse>('/zones');
+  const response = await fetchApi<ZoneListResponse>('/zones');
+  // Filter to only MVP zones (Texas)
+  const filteredZones = response.zones.filter(z => MVP_ALLOWED_ZONES.includes(z.slug));
+  return {
+    ...response,
+    zones: filteredZones,
+    total: filteredZones.length,
+  };
 }
 
 export async function getZone(zoneId: string): Promise<Zone> {
@@ -249,6 +259,7 @@ export async function updateZoneRegionalCodes(
 
 // ============ Demo Data (Fallback) ============
 
+// MVP: Only Texas has functional data
 export const DEMO_ZONES: Zone[] = [
   {
     id: 'texas',
@@ -261,24 +272,6 @@ export const DEMO_ZONES: Zone[] = [
     energy_price_usd_mwh: 95.0,
     fuel_price_usd_mmbtu: 3.2,
     currency: 'USD',
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'cdmx',
-    name: 'Mexico City',
-    slug: 'cdmx',
-    latitude: 19.4326,
-    longitude: -99.1332,
-    country_code: 'MEX',
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'monterrey',
-    name: 'Monterrey',
-    slug: 'monterrey',
-    latitude: 25.6866,
-    longitude: -100.3161,
-    country_code: 'MEX',
     created_at: new Date().toISOString(),
   },
 ];
@@ -389,37 +382,22 @@ export const DEMO_ECONOMIC_SIMULATION: EconomicSimulationResponse = {
   calculated_at: new Date().toISOString(),
 };
 
-export const DEMO_RISK_CDMX: RiskResponse = {
-  zone_id: 'cdmx',
-  spi_6m: -1.72,
+// MVP: Texas demo risk data
+export const DEMO_RISK_TEXAS: RiskResponse = {
+  zone_id: 'texas',
+  spi_6m: -1.55,
   risk_level: 'HIGH',
   trend: 'WORSENING',
-  days_to_critical: 24,
-  last_updated: new Date().toISOString(),
-};
-
-export const DEMO_RISK_MONTERREY: RiskResponse = {
-  zone_id: 'monterrey',
-  spi_6m: -1.45,
-  risk_level: 'HIGH',
-  trend: 'STABLE',
-  days_to_critical: 38,
+  days_to_critical: 32,
   last_updated: new Date().toISOString(),
 };
 
 export function getDemoRisk(zoneId: string): RiskResponse {
-  // Texas is the primary energy infrastructure zone
-  if (zoneId === 'texas') {
-    return {
-      zone_id: 'texas',
-      spi_6m: -1.55,
-      risk_level: 'HIGH',
-      trend: 'WORSENING',
-      days_to_critical: 32,
-      last_updated: new Date().toISOString(),
-    };
-  }
-  return zoneId === 'cdmx' ? DEMO_RISK_CDMX : DEMO_RISK_MONTERREY;
+  // MVP: Only Texas has functional data
+  return {
+    ...DEMO_RISK_TEXAS,
+    zone_id: zoneId,
+  };
 }
 
 export function getDemoEconomicSimulation(zoneId: string): EconomicSimulationResponse {

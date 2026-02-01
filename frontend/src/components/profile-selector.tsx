@@ -21,16 +21,10 @@ const profiles: { value: Profile; label: string; icon: typeof Building2 }[] = [
 ];
 
 export function ProfileSelector({ value, onChange }: ProfileSelectorProps) {
-  const selectedProfile = profiles.find(p => p.value === value);
-  const Icon = selectedProfile?.icon || Landmark;
-  
   return (
     <Select value={value} onValueChange={(v) => onChange(v as Profile)}>
       <SelectTrigger className="w-[180px]">
-        <div className="flex items-center gap-2">
-          <Icon className="h-4 w-4 text-muted-foreground" />
-          <SelectValue placeholder="Select profile" />
-        </div>
+        <SelectValue placeholder="Select profile" />
       </SelectTrigger>
       <SelectContent>
         {profiles.map((profile) => {
