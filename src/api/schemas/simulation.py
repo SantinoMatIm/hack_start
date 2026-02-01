@@ -1,7 +1,17 @@
 """Simulation schemas."""
 
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+
+class SPIBrief(BaseModel):
+    """AI-generated analysis of the SPI simulation results."""
+    
+    executive_summary: str = Field(..., description="2-3 sentence key finding")
+    risk_context: str = Field(..., description="What current conditions mean")
+    action_rationale: str = Field(..., description="Why selected actions help")
+    recommendation: str = Field(..., description="Clear next steps")
+    generated: bool = Field(default=True, description="Whether AI brief was generated")
 
 
 class TrajectoryPoint(BaseModel):
@@ -55,4 +65,8 @@ class SimulationResponse(BaseModel):
     with_action: ScenarioResult
     comparison: ScenarioComparison
     summary: str  # Human-readable summary
+    ai_brief: Optional[SPIBrief] = Field(
+        default=None,
+        description="AI-generated analysis and recommendations"
+    )
     actions_applied: list[ActionApplied] = []  # Per-action impact for dashboard

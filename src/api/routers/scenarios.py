@@ -12,6 +12,7 @@ from src.api.schemas.simulation import (
     ScenarioComparison,
     TrajectoryPoint,
     ActionApplied,
+    SPIBrief,
 )
 
 router = APIRouter(prefix="/scenarios", tags=["scenarios"])
@@ -149,6 +150,64 @@ def simulate_scenarios(
     delta = calculator.calculate_delta(no_action_proj, with_action_proj)
     summary = calculator.format_delta_summary(delta)
 
+    # Generate AI brief (optional - only if OpenAI key is configured)
+    ai_brief = None
+    try:
+        from src.ai_orchestrator.brief_generator import generate_spi_brief, get_spi_fallback_brief
+        
+        # Get action titles for the brief
+        action_titles = [a.title for a in actions_applied_list]
+        
+        # Try AI generation first
+        brief_data = generate_spi_brief(
+            zone_id=zone.slug,
+            current_spi=snapshot.spi_6m,
+            current_risk_level=snapshot.risk_level,
+            trend=snapshot.trend,
+            days_to_critical_current=snapshot.days_to_critical,
+            projection_days=request.projection_days,
+            ending_spi_no_action=no_action["ending_spi"],
+            ending_risk_no_action=no_action["ending_risk_level"],
+            days_to_critical_no_action=no_action["days_to_critical"],
+            ending_spi_with_action=with_action["ending_spi"],
+            ending_risk_with_action=with_action["ending_risk_level"],
+            days_to_critical_with_action=with_action["days_to_critical"],
+            days_gained=int(comparison["days_gained"]),
+            spi_improvement=comparison["spi_improvement"],
+            risk_level_change=comparison["risk_level_change"],
+            actions=action_titles,
+        )
+        
+        # Use fallback if AI generation fails
+        if not brief_data:
+            brief_data = get_spi_fallback_brief(
+                days_gained=int(comparison["days_gained"]),
+                spi_improvement=comparison["spi_improvement"],
+                current_risk_level=snapshot.risk_level,
+                ending_risk_no_action=no_action["ending_risk_level"],
+                ending_risk_with_action=with_action["ending_risk_level"],
+                projection_days=request.projection_days,
+                actions=action_titles,
+            )
+            ai_brief = SPIBrief(
+                executive_summary=brief_data["executive_summary"],
+                risk_context=brief_data["risk_context"],
+                action_rationale=brief_data["action_rationale"],
+                recommendation=brief_data["recommendation"],
+                generated=False,
+            )
+        else:
+            ai_brief = SPIBrief(
+                executive_summary=brief_data["executive_summary"],
+                risk_context=brief_data["risk_context"],
+                action_rationale=brief_data["action_rationale"],
+                recommendation=brief_data["recommendation"],
+                generated=True,
+            )
+    except Exception as e:
+        print(f"Failed to generate SPI brief: {e}")
+        # Continue without AI brief
+
     return SimulationResponse(
         zone_id=zone.slug,
         no_action=ScenarioResult(
@@ -186,5 +245,6 @@ def simulate_scenarios(
             actions_count=comparison["actions_count"],
         ),
         summary=summary,
+        ai_brief=ai_brief,
         actions_applied=actions_applied_list,
     )

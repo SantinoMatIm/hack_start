@@ -21,55 +21,53 @@ import {
   AlertTriangle,
   TrendingDown,
   Clock,
-  Shield,
-  LineChart,
-  Target
+  Factory,
 } from 'lucide-react';
 
 const features = [
   {
     icon: BarChart3,
-    title: 'Risk Assessment',
-    description: 'Real-time SPI-6 calculation with 4-level risk classification and trend analysis.',
+    title: 'Water Stress Assessment',
+    description: 'Real-time SPI-6 calculation with 4-level risk classification and impact on power infrastructure.',
     href: '/risk',
   },
   {
     icon: Zap,
     title: 'Smart Actions',
-    description: 'AI-parameterized recommendations from 15 curated actions based on 6 heuristics.',
+    description: 'AI-parameterized water conservation actions to protect power generation capacity.',
     href: '/actions',
   },
   {
     icon: Play,
-    title: 'Scenario Simulation',
-    description: 'Compare act vs. not-act outcomes with detailed trajectory projections.',
+    title: 'Economic Simulation',
+    description: 'Calculate USD savings from preventing capacity loss at power plants.',
     href: '/simulation',
   },
 ];
 
 const stats = [
-  { label: 'Pilot Zones', value: '2', sublabel: 'CDMX & Monterrey' },
-  { label: 'Base Actions', value: '15', sublabel: 'Curated catalog' },
-  { label: 'Heuristics', value: '6', sublabel: 'Decision rules' },
+  { label: 'Power Plants', value: '3+', sublabel: 'Per region monitored' },
+  { label: 'Potential Savings', value: '$1.9M', sublabel: 'Per projection period' },
+  { label: 'Capacity Protected', value: '8GW+', sublabel: 'Infrastructure coverage' },
 ];
 
 const valueProps = [
   {
     icon: AlertTriangle,
-    title: 'No More Dashboards',
-    description: "We don't just show data. We tell you what to do about it.",
+    title: 'Infrastructure at Risk',
+    description: "Power plants depend on water for cooling. Water stress = capacity loss.",
     color: 'text-amber-600',
   },
   {
     icon: TrendingDown,
     title: 'Cost of Inaction',
-    description: 'See exactly what you lose by waiting. Consequences are visual.',
+    description: 'See exactly what you lose in USD by waiting. Every day costs money.',
     color: 'text-red-500',
   },
   {
     icon: Clock,
-    title: 'Auditable AI',
-    description: 'Every recommendation traces to numeric heuristics. No black boxes.',
+    title: 'Auditable Calculations',
+    description: 'Real EIA electricity prices. Transparent formulas. No black boxes.',
     color: 'text-primary',
   },
 ];
@@ -178,19 +176,19 @@ export default function HomePage() {
               animate={{ opacity: 1, y: 0 }}
             >
               <Droplets className="h-4 w-4" />
-              Decision Intelligence Platform
+              Energy Infrastructure Water Risk
             </motion.div>
             
             {/* Headline */}
             <h1 className="hero-title text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-foreground">
-              Water Risk
-              <span className="text-gradient"> Management</span>
+              Protect Power
+              <span className="text-gradient"> Infrastructure</span>
             </h1>
             
             {/* Subheadline */}
             <p className="hero-subtitle text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-              Transform climate data into operational decisions. Prioritize actions, 
-              simulate consequences, and manage drought risk with confidence.
+              Calculate the economic impact of water stress on power plants. 
+              Simulate savings from water conservation actions before it's too late.
             </p>
             
             {/* CTA Buttons */}
@@ -240,11 +238,11 @@ export default function HomePage() {
             Platform Capabilities
           </motion.span>
           <h2 className="text-3xl md:text-4xl font-bold mb-4 tracking-tight">
-            Decision-First Platform
+            From Water Stress to USD Impact
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-            Move beyond dashboards. Every feature is designed to help you decide faster, 
-            with more clarity, and better understanding of consequences.
+            Connect climate data to power infrastructure economics. 
+            See exactly how much money is at risk and what actions can save.
           </p>
         </div>
         
@@ -318,22 +316,22 @@ export default function HomePage() {
         <div className="container py-20">
           <div className="max-w-2xl mx-auto text-center">
             <h2 className="text-2xl md:text-3xl font-bold mb-4">
-              Ready to take control of water risk?
+              How much is water stress costing your power infrastructure?
             </h2>
             <p className="text-muted-foreground mb-8">
-              Start with a risk assessment for your zone and discover what actions could help.
+              Run an economic simulation to see potential savings from water conservation actions.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Button asChild size="lg" className="gap-2">
-                <Link href="/risk">
-                  <BarChart3 className="h-4 w-4" />
-                  View Risk Status
+                <Link href="/simulation">
+                  <Play className="h-4 w-4" />
+                  Run Economic Simulation
                 </Link>
               </Button>
               <Button asChild variant="outline" size="lg" className="gap-2">
-                <Link href="/actions">
-                  <Zap className="h-4 w-4" />
-                  Browse Actions
+                <Link href="/risk">
+                  <BarChart3 className="h-4 w-4" />
+                  View Water Risk
                 </Link>
               </Button>
             </div>
@@ -349,10 +347,10 @@ export default function HomePage() {
             <span className="font-semibold">Water Risk Platform</span>
           </div>
           <p className="text-sm text-muted-foreground">
-            Decision Intelligence for Drought Management
+            Energy Infrastructure Water Risk Intelligence
           </p>
           <p className="text-xs text-muted-foreground mt-2">
-            Pilot Zones: Mexico City (CDMX) • Monterrey
+            Powered by EIA Electricity Data • Real-time Pricing
           </p>
         </div>
       </footer>

@@ -16,6 +16,8 @@ import {
   api, 
   DEMO_ZONES,
   type SimulationResponse,
+  type EconomicSimulationResponse,
+  type PowerPlantListResponse,
 } from '@/lib/api';
 import { 
   AlertCircle, 
@@ -30,7 +32,16 @@ import {
   Loader2,
   ChevronLeft,
   Sparkles,
-  Target
+  Target,
+  DollarSign,
+  Zap,
+  Factory,
+  Droplets,
+  Building2,
+  Brain,
+  Lightbulb,
+  AlertOctagon,
+  ArrowUpRight,
 } from 'lucide-react';
 import {
   LineChart,
@@ -90,33 +101,67 @@ const DEMO_SIMULATION: SimulationResponse = {
   ],
 };
 
+// Format USD with commas
+function formatUSD(amount: number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+// Format number with commas
+function formatNumber(num: number): string {
+  return new Intl.NumberFormat('en-US').format(num);
+}
+
 export default function SimulationPage() {
   const [selectedActions, setSelectedActions] = useState<StoredAction[]>([]);
-  const [selectedZone, setSelectedZone] = useState<string>('cdmx');
+  const [selectedZone, setSelectedZone] = useState<string>('texas');
   const [zones, setZones] = useState(DEMO_ZONES);
   const [projectionDays, setProjectionDays] = useState<number>(90);
   const [simulation, setSimulation] = useState<SimulationResponse | null>(null);
+  const [economicSimulation, setEconomicSimulation] = useState<EconomicSimulationResponse | null>(null);
+  const [powerPlants, setPowerPlants] = useState<PowerPlantListResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDemo, setIsDemo] = useState(false);
+  const [simulationMode, setSimulationMode] = useState<'economic' | 'spi'>('economic');
 
   const resultsRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<HTMLDivElement>(null);
 
-  // Fetch zones from API on mount
+  // Fetch zones on mount (sequential to avoid overwhelming Supabase)
   useEffect(() => {
-    async function fetchZones() {
+    async function fetchInitialData() {
       try {
-        const response = await api.getZones();
-        if (response.zones && response.zones.length > 0) {
-          setZones(response.zones);
+        const zonesResponse = await api.getZones();
+        if (zonesResponse.zones && zonesResponse.zones.length > 0) {
+          setZones(zonesResponse.zones);
         }
       } catch (err) {
         console.warn('Failed to fetch zones, using demo data:', err);
       }
     }
-    fetchZones();
+    fetchInitialData();
   }, []);
+
+  // Fetch power plants when zone changes (separate effect to avoid race conditions)
+  useEffect(() => {
+    async function fetchPowerPlants() {
+      try {
+        const plantsResponse = await api.getPowerPlants(selectedZone);
+        setPowerPlants(plantsResponse);
+      } catch (err) {
+        console.warn('Failed to fetch power plants:', err);
+        setPowerPlants(api.getDemoPowerPlants(selectedZone));
+      }
+    }
+    // Small delay to avoid hitting Supabase connection limit
+    const timer = setTimeout(fetchPowerPlants, 100);
+    return () => clearTimeout(timer);
+  }, [selectedZone]);
 
   useEffect(() => {
     const storedActions = localStorage.getItem('selectedActions');
@@ -146,7 +191,7 @@ export default function SimulationPage() {
 
   // GSAP animations for results
   useGSAP(() => {
-    if (prefersReducedMotion() || loading || !simulation) return;
+    if (prefersReducedMotion() || loading || (!simulation && !economicSimulation)) return;
 
     if (resultsRef.current) {
       const tl = gsap.timeline();
@@ -189,41 +234,66 @@ export default function SimulationPage() {
         }
       );
     }
-  }, { dependencies: [loading, simulation] });
+  }, { dependencies: [loading, simulation, economicSimulation] });
 
   const runSimulation = async () => {
-    if (selectedActions.length === 0) return;
-    
     setLoading(true);
     setError(null);
     
-    try {
-      const data = await api.simulateScenario({
-        zone_id: selectedZone,
-        action_instance_ids: selectedActions.map(a => a.action_instance_id),
-        projection_days: projectionDays,
-      });
-      setSimulation(data);
-      setIsDemo(false);
-    } catch (err) {
-      console.warn('API unavailable, using demo data:', err);
-      // Update demo simulation with selected actions info
-      setSimulation({
-        ...DEMO_SIMULATION,
-        comparison: {
-          ...DEMO_SIMULATION.comparison,
-          actions_count: selectedActions.length,
-        },
-        actions_applied: selectedActions.map(a => ({
-          code: a.action_code,
-          title: a.title,
-          days_gained: a.days_gained,
-        })),
-      });
-      setIsDemo(true);
-    } finally {
-      setLoading(false);
+    if (simulationMode === 'economic') {
+      // Economic simulation - works even without selected actions
+      try {
+        const data = await api.runEconomicSimulation({
+          zone_id: selectedZone,
+          power_plant_ids: [], // Empty = all plants in zone
+          action_instance_ids: selectedActions.map(a => a.action_instance_id),
+          projection_days: projectionDays,
+        });
+        setEconomicSimulation(data);
+        setSimulation(null);
+        setIsDemo(false);
+      } catch (err) {
+        console.warn('API unavailable, using demo data:', err);
+        setEconomicSimulation(api.getDemoEconomicSimulation(selectedZone));
+        setSimulation(null);
+        setIsDemo(true);
+      }
+    } else {
+      // SPI-based simulation
+      if (selectedActions.length === 0) {
+        setLoading(false);
+        return;
+      }
+      
+      try {
+        const data = await api.simulateScenario({
+          zone_id: selectedZone,
+          action_instance_ids: selectedActions.map(a => a.action_instance_id),
+          projection_days: projectionDays,
+        });
+        setSimulation(data);
+        setEconomicSimulation(null);
+        setIsDemo(false);
+      } catch (err) {
+        console.warn('API unavailable, using demo data:', err);
+        setSimulation({
+          ...DEMO_SIMULATION,
+          comparison: {
+            ...DEMO_SIMULATION.comparison,
+            actions_count: selectedActions.length,
+          },
+          actions_applied: selectedActions.map(a => ({
+            code: a.action_code,
+            title: a.title,
+            days_gained: a.days_gained,
+          })),
+        });
+        setEconomicSimulation(null);
+        setIsDemo(true);
+      }
     }
+    
+    setLoading(false);
   };
 
   // Prepare chart data
@@ -254,12 +324,34 @@ export default function SimulationPage() {
             </Link>
           </div>
           <span className="text-sm font-semibold text-primary mb-1 block tracking-wide uppercase">
-            Scenario Analysis
+            Economic Impact Analysis
           </span>
-          <h1 className="text-3xl font-bold tracking-tight">Simulation</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Cost Simulation</h1>
           <p className="text-muted-foreground mt-1">
-            Compare outcomes: Act vs. Not Act
+            Calculate potential savings from water risk mitigation on power infrastructure
           </p>
+        </div>
+        
+        {/* Simulation Mode Toggle */}
+        <div className="flex items-center gap-2">
+          <Button 
+            variant={simulationMode === 'economic' ? 'default' : 'outline'} 
+            size="sm"
+            onClick={() => setSimulationMode('economic')}
+            className="gap-2"
+          >
+            <DollarSign className="h-4 w-4" />
+            Economic
+          </Button>
+          <Button 
+            variant={simulationMode === 'spi' ? 'default' : 'outline'} 
+            size="sm"
+            onClick={() => setSimulationMode('spi')}
+            className="gap-2"
+          >
+            <Droplets className="h-4 w-4" />
+            SPI-based
+          </Button>
         </div>
       </motion.div>
 
@@ -279,8 +371,49 @@ export default function SimulationPage() {
         </motion.div>
       )}
 
-      {/* No Actions Selected */}
-      {selectedActions.length === 0 ? (
+      {/* Power Plants Info Card */}
+      {powerPlants && powerPlants.total > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          <Card className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+            <CardContent className="py-4">
+              <div className="flex flex-wrap items-center gap-4 md:gap-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-blue-100">
+                    <Factory className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <span className="text-sm text-muted-foreground">Power Plants in Zone</span>
+                    <p className="font-semibold text-lg">{powerPlants.total} plants</p>
+                  </div>
+                </div>
+                <div className="h-10 w-px bg-blue-200 hidden md:block" />
+                <div>
+                  <span className="text-sm text-muted-foreground">Total Capacity</span>
+                  <p className="font-semibold text-lg">{formatNumber(powerPlants.total_capacity_mw)} MW</p>
+                </div>
+                <div className="h-10 w-px bg-blue-200 hidden md:block" />
+                <div className="flex gap-2">
+                  {powerPlants.plants.slice(0, 3).map(plant => (
+                    <Badge key={plant.id} variant="secondary" className="text-xs">
+                      {plant.name.length > 15 ? plant.name.substring(0, 15) + '...' : plant.name}
+                    </Badge>
+                  ))}
+                  {powerPlants.total > 3 && (
+                    <Badge variant="outline" className="text-xs">+{powerPlants.total - 3} more</Badge>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* No Actions Selected - Only for SPI mode */}
+      {simulationMode === 'spi' && selectedActions.length === 0 ? (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -293,14 +426,25 @@ export default function SimulationPage() {
               </div>
               <h3 className="text-xl font-semibold mb-2">No Actions Selected</h3>
               <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                Select actions from the Actions page to run a simulation and see projected outcomes.
+                Select actions from the Actions page to run SPI simulation, or switch to Economic mode.
               </p>
-              <Button asChild size="lg">
-                <Link href="/actions">
-                  Go to Actions
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Link>
-              </Button>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <Button asChild size="lg">
+                  <Link href="/actions">
+                    Go to Actions
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </Link>
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="lg" 
+                  onClick={() => setSimulationMode('economic')}
+                  className="gap-2"
+                >
+                  <DollarSign className="h-4 w-4" />
+                  Try Economic Mode
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </motion.div>
@@ -326,13 +470,21 @@ export default function SimulationPage() {
                     <Badge variant="outline" className="font-medium">{zoneName}</Badge>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Actions:</span>
-                    <div className="flex gap-1 flex-wrap">
-                      {selectedActions.map(action => (
-                        <Badge key={action.action_instance_id} variant="secondary" className="text-xs">{action.action_code}</Badge>
-                      ))}
-                    </div>
+                    <span className="text-sm text-muted-foreground">Mode:</span>
+                    <Badge variant={simulationMode === 'economic' ? 'default' : 'secondary'} className="font-medium">
+                      {simulationMode === 'economic' ? 'Economic (USD)' : 'SPI-based'}
+                    </Badge>
                   </div>
+                  {selectedActions.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">Actions:</span>
+                      <div className="flex gap-1 flex-wrap">
+                        {selectedActions.map(action => (
+                          <Badge key={action.action_instance_id} variant="secondary" className="text-xs">{action.action_code}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">Projection:</span>
                     <span className="font-semibold">{projectionDays} days</span>
@@ -349,7 +501,7 @@ export default function SimulationPage() {
                       ) : (
                         <Play className="h-4 w-4" />
                       )}
-                      {loading ? 'Simulating...' : 'Run Simulation'}
+                      {loading ? 'Calculating...' : 'Run Simulation'}
                     </AnimatedButton>
                   </div>
                 </div>
@@ -383,7 +535,285 @@ export default function SimulationPage() {
             )}
           </AnimatePresence>
 
-          {/* Simulation Results */}
+          {/* Economic Simulation Results */}
+          {economicSimulation && !loading && (
+            <div ref={resultsRef}>
+              {/* Savings Hero Card */}
+              <HighlightedCard variant="success" className="comparison-card mb-8">
+                <CardContent className="py-8">
+                  <div className="text-center">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-100 text-emerald-700 text-sm font-medium mb-4">
+                      <Sparkles className="h-4 w-4" />
+                      Potential Savings
+                    </div>
+                    <div className="text-6xl md:text-7xl font-bold text-emerald-600 mb-2">
+                      {formatUSD(economicSimulation.savings_usd)}
+                    </div>
+                    <p className="text-lg text-muted-foreground">
+                      over {economicSimulation.projection_days} days by implementing water conservation actions
+                    </p>
+                    <div className="flex items-center justify-center gap-2 mt-4">
+                      <Badge variant="outline" className="text-emerald-600 border-emerald-300">
+                        {economicSimulation.savings_pct.toFixed(1)}% cost reduction
+                      </Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </HighlightedCard>
+
+              {/* Comparison Cards */}
+              <div className="grid gap-6 md:grid-cols-2 mb-8">
+                {/* No Action Scenario */}
+                <HighlightedCard variant="danger" className="comparison-card">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-xl bg-red-100">
+                        <XCircle className="h-5 w-5 text-red-600" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">Without Action</CardTitle>
+                        <CardDescription>Projected costs if no water actions taken</CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Total Cost</span>
+                      <span className="text-2xl font-bold text-red-600">
+                        {formatUSD(economicSimulation.no_action.total_cost_usd)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Capacity Loss</span>
+                      <span className="text-xl font-semibold text-red-600">
+                        {(economicSimulation.no_action.capacity_loss_pct * 100).toFixed(0)}%
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Lost Generation</span>
+                      <span className="font-medium">
+                        {formatNumber(economicSimulation.no_action.lost_generation_mwh)} MWh
+                      </span>
+                    </div>
+                    {economicSimulation.no_action.emergency_fuel_cost_usd > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Emergency Fuel</span>
+                        <span className="font-medium text-amber-600">
+                          {formatUSD(economicSimulation.no_action.emergency_fuel_cost_usd)}
+                        </span>
+                      </div>
+                    )}
+                  </CardContent>
+                </HighlightedCard>
+
+                {/* With Action Scenario */}
+                <HighlightedCard variant="success" className="comparison-card">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-xl bg-emerald-100">
+                        <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">With Action</CardTitle>
+                        <CardDescription>Projected costs with water conservation</CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Total Cost</span>
+                      <span className="text-2xl font-bold text-emerald-600">
+                        {formatUSD(economicSimulation.with_action.total_cost_usd)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Capacity Loss</span>
+                      <span className="text-xl font-semibold text-emerald-600">
+                        {(economicSimulation.with_action.capacity_loss_pct * 100).toFixed(0)}%
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Lost Generation</span>
+                      <span className="font-medium">
+                        {formatNumber(economicSimulation.with_action.lost_generation_mwh)} MWh
+                      </span>
+                    </div>
+                    {economicSimulation.with_action.emergency_fuel_cost_usd > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Emergency Fuel</span>
+                        <span className="font-medium text-emerald-600">
+                          {formatUSD(economicSimulation.with_action.emergency_fuel_cost_usd)}
+                        </span>
+                      </div>
+                    )}
+                  </CardContent>
+                </HighlightedCard>
+              </div>
+
+              {/* AI Analysis Brief */}
+              {economicSimulation.ai_brief && (
+                <Card className="mb-8 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+                  <CardHeader className="pb-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-xl bg-primary/10">
+                          <Brain className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">AI Analysis</CardTitle>
+                          <CardDescription>
+                            {economicSimulation.ai_brief.generated 
+                              ? 'AI-generated insights and recommendations' 
+                              : 'Analysis based on simulation data'}
+                          </CardDescription>
+                        </div>
+                      </div>
+                      {economicSimulation.ai_brief.generated && (
+                        <Badge variant="outline" className="text-xs">
+                          <Sparkles className="h-3 w-3 mr-1" />
+                          AI Generated
+                        </Badge>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {/* Executive Summary */}
+                    <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
+                      <h4 className="font-semibold text-sm text-primary mb-2 flex items-center gap-2">
+                        <Target className="h-4 w-4" />
+                        Executive Summary
+                      </h4>
+                      <p className="text-sm leading-relaxed">
+                        {economicSimulation.ai_brief.executive_summary}
+                      </p>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {/* Risk Context */}
+                      <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
+                        <h4 className="font-semibold text-sm text-primary mb-2 flex items-center gap-2">
+                          <AlertOctagon className="h-4 w-4" />
+                          Risk Context
+                        </h4>
+                        <p className="text-sm leading-relaxed">
+                          {economicSimulation.ai_brief.risk_context}
+                        </p>
+                      </div>
+
+                      {/* Action Rationale */}
+                      <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
+                        <h4 className="font-semibold text-sm text-primary mb-2 flex items-center gap-2">
+                          <Lightbulb className="h-4 w-4" />
+                          Why These Actions Work
+                        </h4>
+                        <p className="text-sm leading-relaxed">
+                          {economicSimulation.ai_brief.action_rationale}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Recommendation */}
+                    <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
+                      <h4 className="font-semibold text-sm text-primary mb-2 flex items-center gap-2">
+                        <ArrowUpRight className="h-4 w-4" />
+                        Recommendation
+                      </h4>
+                      <p className="text-sm leading-relaxed">
+                        {economicSimulation.ai_brief.recommendation}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Per-Plant Breakdown */}
+              {economicSimulation.per_plant_breakdown.length > 0 && (
+                <Card className="mb-8">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Factory className="h-5 w-5 text-primary" />
+                      Per-Plant Breakdown
+                    </CardTitle>
+                    <CardDescription>
+                      Individual impact on {economicSimulation.plants_analyzed} power plants ({formatNumber(economicSimulation.total_capacity_mw)} MW total)
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {economicSimulation.per_plant_breakdown.map((plant) => (
+                        <div key={plant.plant_id} className="p-4 rounded-xl border bg-secondary/30">
+                          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                            <div>
+                              <h4 className="font-semibold flex items-center gap-2">
+                                <Building2 className="h-4 w-4 text-muted-foreground" />
+                                {plant.plant_name}
+                              </h4>
+                              <p className="text-sm text-muted-foreground">{formatNumber(plant.capacity_mw)} MW capacity</p>
+                            </div>
+                            <div className="flex flex-wrap gap-6">
+                              <div className="text-center">
+                                <p className="text-xs text-muted-foreground mb-1">Without Action</p>
+                                <p className="font-semibold text-red-600">{formatUSD(plant.no_action_cost_usd)}</p>
+                                <p className="text-xs text-muted-foreground">{(plant.capacity_loss_no_action * 100).toFixed(0)}% loss</p>
+                              </div>
+                              <div className="text-center">
+                                <p className="text-xs text-muted-foreground mb-1">With Action</p>
+                                <p className="font-semibold text-emerald-600">{formatUSD(plant.with_action_cost_usd)}</p>
+                                <p className="text-xs text-muted-foreground">{(plant.capacity_loss_with_action * 100).toFixed(0)}% loss</p>
+                              </div>
+                              <div className="text-center">
+                                <p className="text-xs text-muted-foreground mb-1">Savings</p>
+                                <p className="font-bold text-emerald-600">{formatUSD(plant.savings_usd)}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Methodology & Prices */}
+              <Card className="impact-summary">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Info className="h-5 w-5 text-primary" />
+                    Calculation Details
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Electricity Price</p>
+                      <p className="font-semibold">${economicSimulation.marginal_price_used_usd_mwh.toFixed(2)} /MWh</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Fuel Price</p>
+                      <p className="font-semibold">${economicSimulation.fuel_price_used_usd_mmbtu.toFixed(2)} /MMBtu</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Projection Period</p>
+                      <p className="font-semibold">{economicSimulation.projection_days} days</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Calculated At</p>
+                      <p className="font-semibold text-sm">
+                        {new Date(economicSimulation.calculated_at).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="p-4 bg-secondary/50 rounded-xl">
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {economicSimulation.summary}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* SPI-based Simulation Results */}
           {simulation && !loading && (
             <div ref={resultsRef}>
               {/* Comparison Cards */}
@@ -495,6 +925,82 @@ export default function SimulationPage() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* AI Analysis Brief for SPI Simulation */}
+              {simulation.ai_brief && (
+                <Card className="mb-8 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+                  <CardHeader className="pb-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-xl bg-primary/10">
+                          <Brain className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">AI Analysis</CardTitle>
+                          <CardDescription>
+                            {simulation.ai_brief.generated 
+                              ? 'AI-generated insights and recommendations' 
+                              : 'Analysis based on simulation data'}
+                          </CardDescription>
+                        </div>
+                      </div>
+                      {simulation.ai_brief.generated && (
+                        <Badge variant="outline" className="text-xs">
+                          <Sparkles className="h-3 w-3 mr-1" />
+                          AI Generated
+                        </Badge>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {/* Executive Summary */}
+                    <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
+                      <h4 className="font-semibold text-sm text-primary mb-2 flex items-center gap-2">
+                        <Target className="h-4 w-4" />
+                        Executive Summary
+                      </h4>
+                      <p className="text-sm leading-relaxed">
+                        {simulation.ai_brief.executive_summary}
+                      </p>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {/* Risk Context */}
+                      <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
+                        <h4 className="font-semibold text-sm text-primary mb-2 flex items-center gap-2">
+                          <AlertOctagon className="h-4 w-4" />
+                          Risk Context
+                        </h4>
+                        <p className="text-sm leading-relaxed">
+                          {simulation.ai_brief.risk_context}
+                        </p>
+                      </div>
+
+                      {/* Action Rationale */}
+                      <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
+                        <h4 className="font-semibold text-sm text-primary mb-2 flex items-center gap-2">
+                          <Lightbulb className="h-4 w-4" />
+                          Why These Actions Work
+                        </h4>
+                        <p className="text-sm leading-relaxed">
+                          {simulation.ai_brief.action_rationale}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Recommendation */}
+                    <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
+                      <h4 className="font-semibold text-sm text-primary mb-2 flex items-center gap-2">
+                        <ArrowUpRight className="h-4 w-4" />
+                        Recommendation
+                      </h4>
+                      <p className="text-sm leading-relaxed">
+                        {simulation.ai_brief.recommendation}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Trajectory Chart */}
               <Card ref={chartRef}>

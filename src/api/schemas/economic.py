@@ -61,6 +61,16 @@ class PlantBreakdown(BaseModel):
     capacity_loss_with_action: float
 
 
+class AIBrief(BaseModel):
+    """AI-generated analysis of the simulation results."""
+    
+    executive_summary: str = Field(..., description="2-3 sentence key finding")
+    risk_context: str = Field(..., description="What current conditions mean")
+    action_rationale: str = Field(..., description="Why selected actions help")
+    recommendation: str = Field(..., description="Clear next steps")
+    generated: bool = Field(default=True, description="Whether AI brief was generated")
+
+
 class EconomicSimulationResponse(BaseModel):
     """Response schema for economic simulation."""
 
@@ -78,6 +88,12 @@ class EconomicSimulationResponse(BaseModel):
 
     # Summary
     summary: str = Field(..., description="Human-readable summary")
+    
+    # AI Brief (optional - only generated if OpenAI key is configured)
+    ai_brief: Optional[AIBrief] = Field(
+        default=None, 
+        description="AI-generated analysis and recommendations"
+    )
 
     # Per-plant details
     per_plant_breakdown: list[PlantBreakdown] = Field(default=[])

@@ -271,142 +271,145 @@ def get_recommended_actions(
     except Exception:
         pass
 
-    # Full database mode
-    from src.db.connection import get_session
+    # Full database mode with retry for transient errors
+    from src.db.retry import get_session_with_retry
     from src.db.models import Zone, RiskSnapshot, Action, ActionInstance
     from src.heuristics.heuristic_registry import HeuristicRegistry
     from src.ai_orchestrator.orchestrator import AIOrchestrator
 
-    session = next(get_session())
-
-    # Get zone
-    zone = session.query(Zone).filter(Zone.slug == request.zone_id).first()
-    if not zone:
-        raise HTTPException(status_code=404, detail=f"Zone '{request.zone_id}' not found")
-
-    # Validate profile
+    session = get_session_with_retry()
+    
     try:
-        profile = Profile(request.profile.lower())
-    except ValueError:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid profile '{request.profile}'. Use 'government' or 'industry'.",
+        # Get zone
+        zone = session.query(Zone).filter(Zone.slug == request.zone_id).first()
+        if not zone:
+            raise HTTPException(status_code=404, detail=f"Zone '{request.zone_id}' not found")
+
+        # Validate profile
+        try:
+            profile = Profile(request.profile.lower())
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid profile '{request.profile}'. Use 'government' or 'industry'.",
+            )
+
+        # Get latest risk snapshot
+        snapshot = (
+            session.query(RiskSnapshot)
+            .filter(RiskSnapshot.zone_id == zone.id)
+            .order_by(RiskSnapshot.created_at.desc())
+            .first()
         )
 
-    # Get latest risk snapshot
-    snapshot = (
-        session.query(RiskSnapshot)
-        .filter(RiskSnapshot.zone_id == zone.id)
-        .order_by(RiskSnapshot.created_at.desc())
-        .first()
-    )
+        if not snapshot:
+            raise HTTPException(
+                status_code=400,
+                detail=f"No risk assessment available for zone '{request.zone_id}'. Run risk assessment first.",
+            )
 
-    if not snapshot:
-        raise HTTPException(
-            status_code=400,
-            detail=f"No risk assessment available for zone '{request.zone_id}'. Run risk assessment first.",
-        )
+        # Build context for heuristics
+        registry = HeuristicRegistry(session=session)
 
-    # Build context for heuristics
-    registry = HeuristicRegistry(session=session)
+        try:
+            risk_level = RiskLevel(snapshot.risk_level)
+        except ValueError:
+            risk_level = RiskLevel.MEDIUM
 
-    try:
-        risk_level = RiskLevel(snapshot.risk_level)
-    except ValueError:
-        risk_level = RiskLevel.MEDIUM
+        try:
+            trend = Trend(snapshot.trend)
+        except ValueError:
+            trend = Trend.STABLE
 
-    try:
-        trend = Trend(snapshot.trend)
-    except ValueError:
-        trend = Trend.STABLE
-
-    context = registry.build_context(
-        spi=snapshot.spi_6m,
-        risk_level=risk_level,
-        trend=trend,
-        days_to_critical=snapshot.days_to_critical,
-        profile=profile,
-        zone_slug=zone.slug,
-    )
-
-    # Get recommended actions from heuristics
-    recommendations = registry.get_recommended_actions(context)
-
-    # Parametrize actions using AI orchestrator
-    ai_orchestrator = AIOrchestrator()
-
-    parameterized_actions = []
-    for rec in recommendations["recommendations"]:
-        action = session.query(Action).filter(Action.code == rec["action_code"]).first()
-        if not action:
-            continue
-
-        result = ai_orchestrator.parameterize_action(
-            zone=zone.slug,
+        context = registry.build_context(
             spi=snapshot.spi_6m,
             risk_level=risk_level,
             trend=trend,
             days_to_critical=snapshot.days_to_critical,
             profile=profile,
-            action_code=action.code,
-            action_title=action.title,
-            action_description=action.description or "",
-            impact_formula=action.impact_formula,
-            default_urgency_days=action.default_urgency_days,
-            parameter_schema=action.parameter_schema or {},
-            default_parameters=rec.get("default_parameters", {}),
+            zone_slug=zone.slug,
         )
 
-        # Persist ActionInstance (OpenAI/fallback parameterization saved to DB)
-        action_instance = ActionInstance(
-            zone_id=zone.id,
-            base_action_id=action.id,
-            profile=profile.value,
-            parameters=result.parameters,
-            justification=result.justification,
-            expected_effect=result.expected_effect,
-            priority_score=rec.get("priority_score", 50),
-        )
-        session.add(action_instance)
-        session.flush()  # Get action_instance.id for linking in simulations
+        # Get recommended actions from heuristics
+        recommendations = registry.get_recommended_actions(context)
 
-        parameterized_actions.append(RecommendedActionResponse(
-            action_instance_id=str(action_instance.id),
-            action_code=result.action_code,
-            title=action.title,
-            description=action.description,
-            heuristic_id=rec.get("heuristic_id", action.heuristic),
-            priority_score=rec.get("priority_score", 50),
-            parameters=result.parameters,
-            justification=result.justification,
-            expected_effect=ExpectedEffect(
-                days_gained=result.expected_effect.get("days_gained", 0),
-                confidence=result.expected_effect.get("confidence", "estimated"),
-                formula=action.impact_formula,
-            ),
-            method=result.method,
-        ))
+        # Parametrize actions using AI orchestrator
+        ai_orchestrator = AIOrchestrator()
 
-    response = RecommendedActionsResponse(
-        zone_id=zone.slug,
-        profile=profile.value,
-        context=ContextSummary(
-            spi=snapshot.spi_6m,
-            risk_level=risk_level.value,
-            trend=trend.value,
-            days_to_critical=snapshot.days_to_critical,
-            profile=profile.value,
-            zone=zone.slug,
-        ),
-        activated_heuristics=[
-            ActivatedHeuristic(
-                id=h["id"],
-                priority=h["priority"],
-                actions_count=h["actions_count"],
+        parameterized_actions = []
+        for rec in recommendations["recommendations"]:
+            action = session.query(Action).filter(Action.code == rec["action_code"]).first()
+            if not action:
+                continue
+
+            result = ai_orchestrator.parameterize_action(
+                zone=zone.slug,
+                spi=snapshot.spi_6m,
+                risk_level=risk_level,
+                trend=trend,
+                days_to_critical=snapshot.days_to_critical,
+                profile=profile,
+                action_code=action.code,
+                action_title=action.title,
+                action_description=action.description or "",
+                impact_formula=action.impact_formula,
+                default_urgency_days=action.default_urgency_days,
+                parameter_schema=action.parameter_schema or {},
+                default_parameters=rec.get("default_parameters", {}),
             )
-            for h in recommendations["activated_heuristics"]
-        ],
-        actions=parameterized_actions,
-    )
-    session.commit()
-    return response
+
+            # Persist ActionInstance (OpenAI/fallback parameterization saved to DB)
+            action_instance = ActionInstance(
+                zone_id=zone.id,
+                base_action_id=action.id,
+                profile=profile.value,
+                parameters=result.parameters,
+                justification=result.justification,
+                expected_effect=result.expected_effect,
+                priority_score=rec.get("priority_score", 50),
+            )
+            session.add(action_instance)
+            session.flush()  # Get action_instance.id for linking in simulations
+
+            parameterized_actions.append(RecommendedActionResponse(
+                action_instance_id=str(action_instance.id),
+                action_code=result.action_code,
+                title=action.title,
+                description=action.description,
+                heuristic_id=rec.get("heuristic_id", action.heuristic),
+                priority_score=rec.get("priority_score", 50),
+                parameters=result.parameters,
+                justification=result.justification,
+                expected_effect=ExpectedEffect(
+                    days_gained=result.expected_effect.get("days_gained", 0),
+                    confidence=result.expected_effect.get("confidence", "estimated"),
+                    formula=action.impact_formula,
+                ),
+                method=result.method,
+            ))
+
+        response = RecommendedActionsResponse(
+            zone_id=zone.slug,
+            profile=profile.value,
+            context=ContextSummary(
+                spi=snapshot.spi_6m,
+                risk_level=risk_level.value,
+                trend=trend.value,
+                days_to_critical=snapshot.days_to_critical,
+                profile=profile.value,
+                zone=zone.slug,
+            ),
+            activated_heuristics=[
+                ActivatedHeuristic(
+                    id=h["id"],
+                    priority=h["priority"],
+                    actions_count=h["actions_count"],
+                )
+                for h in recommendations["activated_heuristics"]
+            ],
+            actions=parameterized_actions,
+        )
+        session.commit()
+        return response
+    finally:
+        session.close()

@@ -310,6 +310,67 @@ class EconomicCostCalculator:
             f"avoiding ${savings_usd:,.0f} in emergency fuel and replacement costs."
         )
 
+    def calculate_daily_costs(
+        self,
+        plant: PowerPlant,
+        spi_trajectory_no_action: list[dict],
+        spi_trajectory_with_action: list[dict],
+        marginal_price_usd_mwh: float,
+    ) -> dict:
+        """Calculate economic impact day-by-day for more accurate savings.
+        
+        This method captures savings from days where actions keep conditions
+        in a better SPI bucket (e.g., 30% loss instead of 50% loss).
+        
+        Args:
+            plant: PowerPlant to analyze
+            spi_trajectory_no_action: List of {day, projected_spi} for no-action
+            spi_trajectory_with_action: List of {day, projected_spi} for with-action
+            marginal_price_usd_mwh: Electricity price
+            
+        Returns:
+            Dict with daily costs and totals
+        """
+        total_no_action = 0.0
+        total_with_action = 0.0
+        
+        hours_per_day = 24
+        
+        for i, day_no_action in enumerate(spi_trajectory_no_action):
+            spi_no = day_no_action.get("projected_spi", -1.5)
+            
+            # Get corresponding with-action SPI (or use same day index)
+            if i < len(spi_trajectory_with_action):
+                spi_with = spi_trajectory_with_action[i].get("projected_spi", spi_no)
+            else:
+                spi_with = spi_no + 0.3  # Default improvement if trajectory shorter
+            
+            # Calculate capacity loss for each scenario
+            loss_no = self.calculate_capacity_loss_pct(
+                spi=spi_no,
+                water_dependency=plant.water_dependency,
+                cooling_type=plant.cooling_type,
+            )
+            loss_with = self.calculate_capacity_loss_pct(
+                spi=spi_with,
+                water_dependency=plant.water_dependency,
+                cooling_type=plant.cooling_type,
+            )
+            
+            # Daily costs
+            daily_cost_no = plant.capacity_mw * loss_no * hours_per_day * marginal_price_usd_mwh
+            daily_cost_with = plant.capacity_mw * loss_with * hours_per_day * marginal_price_usd_mwh
+            
+            total_no_action += daily_cost_no
+            total_with_action += daily_cost_with
+        
+        return {
+            "total_no_action": total_no_action,
+            "total_with_action": total_with_action,
+            "savings": total_no_action - total_with_action,
+            "days": len(spi_trajectory_no_action),
+        }
+
     def aggregate_plants(
         self,
         plants: list[PowerPlant],
@@ -318,16 +379,20 @@ class EconomicCostCalculator:
         projection_days: int,
         marginal_price_usd_mwh: float,
         fuel_price_usd_mmbtu: float,
+        spi_trajectory_no_action: list[dict] = None,
+        spi_trajectory_with_action: list[dict] = None,
     ) -> dict:
         """Calculate aggregate economic impact across multiple plants.
 
         Args:
             plants: List of PowerPlant instances
-            spi_no_action: Projected SPI without intervention
-            spi_with_action: Projected SPI with water actions
+            spi_no_action: Projected SPI without intervention (used if no trajectory)
+            spi_with_action: Projected SPI with water actions (used if no trajectory)
             projection_days: Days to project
             marginal_price_usd_mwh: Electricity price
             fuel_price_usd_mmbtu: Fuel price
+            spi_trajectory_no_action: Optional daily SPI trajectory without action
+            spi_trajectory_with_action: Optional daily SPI trajectory with action
 
         Returns:
             Dict with aggregated results and per-plant breakdown
@@ -336,31 +401,80 @@ class EconomicCostCalculator:
         total_no_action = 0.0
         total_with_action = 0.0
         total_savings = 0.0
+        
+        # Use day-by-day calculation if trajectories are provided
+        use_daily_calc = (
+            spi_trajectory_no_action is not None 
+            and spi_trajectory_with_action is not None
+            and len(spi_trajectory_no_action) > 0
+        )
 
         for plant in plants:
-            delta = self.calculate_economic_delta(
-                plant=plant,
-                spi_no_action=spi_no_action,
-                spi_with_action=spi_with_action,
-                projection_days=projection_days,
-                marginal_price_usd_mwh=marginal_price_usd_mwh,
-                fuel_price_usd_mmbtu=fuel_price_usd_mmbtu,
-            )
+            if use_daily_calc:
+                # Day-by-day calculation captures savings from days where
+                # actions keep conditions in a better SPI bucket
+                daily_result = self.calculate_daily_costs(
+                    plant=plant,
+                    spi_trajectory_no_action=spi_trajectory_no_action,
+                    spi_trajectory_with_action=spi_trajectory_with_action,
+                    marginal_price_usd_mwh=marginal_price_usd_mwh,
+                )
+                
+                # Calculate effective capacity loss from actual costs
+                # This reflects the day-by-day calculation accurately
+                hours = len(spi_trajectory_no_action) * 24
+                max_possible_cost = plant.capacity_mw * hours * marginal_price_usd_mwh
+                
+                effective_loss_no = (
+                    daily_result["total_no_action"] / max_possible_cost
+                    if max_possible_cost > 0
+                    else 0
+                )
+                effective_loss_with = (
+                    daily_result["total_with_action"] / max_possible_cost
+                    if max_possible_cost > 0
+                    else 0
+                )
+                
+                per_plant_results.append({
+                    "plant_id": str(plant.id),
+                    "plant_name": plant.name,
+                    "capacity_mw": plant.capacity_mw,
+                    "no_action_cost_usd": daily_result["total_no_action"],
+                    "with_action_cost_usd": daily_result["total_with_action"],
+                    "savings_usd": daily_result["savings"],
+                    "capacity_loss_no_action": effective_loss_no,
+                    "capacity_loss_with_action": effective_loss_with,
+                })
+                
+                total_no_action += daily_result["total_no_action"]
+                total_with_action += daily_result["total_with_action"]
+                total_savings += daily_result["savings"]
+            else:
+                # Fallback to single-point calculation
+                delta = self.calculate_economic_delta(
+                    plant=plant,
+                    spi_no_action=spi_no_action,
+                    spi_with_action=spi_with_action,
+                    projection_days=projection_days,
+                    marginal_price_usd_mwh=marginal_price_usd_mwh,
+                    fuel_price_usd_mmbtu=fuel_price_usd_mmbtu,
+                )
 
-            per_plant_results.append({
-                "plant_id": str(plant.id),
-                "plant_name": plant.name,
-                "capacity_mw": plant.capacity_mw,
-                "no_action_cost_usd": delta.no_action.total_cost_usd,
-                "with_action_cost_usd": delta.with_action.total_cost_usd,
-                "savings_usd": delta.savings_usd,
-                "capacity_loss_no_action": delta.no_action.capacity_loss_pct,
-                "capacity_loss_with_action": delta.with_action.capacity_loss_pct,
-            })
+                per_plant_results.append({
+                    "plant_id": str(plant.id),
+                    "plant_name": plant.name,
+                    "capacity_mw": plant.capacity_mw,
+                    "no_action_cost_usd": delta.no_action.total_cost_usd,
+                    "with_action_cost_usd": delta.with_action.total_cost_usd,
+                    "savings_usd": delta.savings_usd,
+                    "capacity_loss_no_action": delta.no_action.capacity_loss_pct,
+                    "capacity_loss_with_action": delta.with_action.capacity_loss_pct,
+                })
 
-            total_no_action += delta.no_action.total_cost_usd
-            total_with_action += delta.with_action.total_cost_usd
-            total_savings += delta.savings_usd
+                total_no_action += delta.no_action.total_cost_usd
+                total_with_action += delta.with_action.total_cost_usd
+                total_savings += delta.savings_usd
 
         total_capacity = sum(p.capacity_mw for p in plants)
         savings_pct = (

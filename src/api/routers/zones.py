@@ -100,32 +100,35 @@ def list_zones():
     except Exception:
         pass
 
-    # Full database mode
-    from src.db.connection import get_session
+    # Full database mode with retry for transient errors
+    from src.db.retry import get_session_with_retry
     from src.db.models import Zone
 
-    session = next(get_session())
-    zones = session.query(Zone).all()
+    session = get_session_with_retry()
+    try:
+        zones = session.query(Zone).all()
 
-    return ZoneListResponse(
-        zones=[
-            ZoneResponse(
-                id=str(zone.id),
-                name=zone.name,
-                slug=zone.slug,
-                latitude=zone.latitude,
-                longitude=zone.longitude,
-                energy_price_usd_mwh=zone.energy_price_usd_mwh,
-                fuel_price_usd_mmbtu=zone.fuel_price_usd_mmbtu,
-                currency=zone.currency,
-                country_code=zone.country_code,
-                state_code=zone.state_code,
-                created_at=zone.created_at,
-            )
-            for zone in zones
-        ],
-        total=len(zones),
-    )
+        return ZoneListResponse(
+            zones=[
+                ZoneResponse(
+                    id=str(zone.id),
+                    name=zone.name,
+                    slug=zone.slug,
+                    latitude=zone.latitude,
+                    longitude=zone.longitude,
+                    energy_price_usd_mwh=zone.energy_price_usd_mwh,
+                    fuel_price_usd_mmbtu=zone.fuel_price_usd_mmbtu,
+                    currency=zone.currency,
+                    country_code=zone.country_code,
+                    state_code=zone.state_code,
+                    created_at=zone.created_at,
+                )
+                for zone in zones
+            ],
+            total=len(zones),
+        )
+    finally:
+        session.close()
 
 
 @router.get("/debug/counts")

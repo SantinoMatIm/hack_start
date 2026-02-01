@@ -40,7 +40,6 @@ async def startup_event():
     """Initialize database connection on startup."""
     try:
         init_db()
-        print("Database connection initialized")
     except Exception as e:
         print(f"Warning: Failed to initialize database: {e}")
 

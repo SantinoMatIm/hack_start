@@ -1,6 +1,6 @@
 """Database module."""
 
-from src.db.connection import get_engine, get_session, SessionLocal
+from src.db.connection import get_engine, get_session, get_session_factory
 from src.db.models import (
     Base,
     Zone,
@@ -14,7 +14,7 @@ from src.db.models import (
 __all__ = [
     "get_engine",
     "get_session",
-    "SessionLocal",
+    "get_session_factory",
     "Base",
     "Zone",
     "ClimateTimeseries",
