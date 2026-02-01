@@ -43,6 +43,11 @@ def get_engine():
         poolclass=NullPool,  # No pooling - fresh connection each time
         connect_args={
             "connect_timeout": 30,
+            # TCP keepalive settings to prevent idle disconnections
+            "keepalives": 1,
+            "keepalives_idle": 30,  # Seconds before sending keepalive
+            "keepalives_interval": 10,  # Seconds between keepalives
+            "keepalives_count": 5,  # Failed keepalives before disconnect
         },
     )
     

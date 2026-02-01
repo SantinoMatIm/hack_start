@@ -131,30 +131,32 @@ def list_actions():
     except Exception:
         pass
 
-    # Full database mode
-    from src.db.connection import get_session
+    # Full database mode with retry
+    from src.db.retry import execute_with_retry
     from src.actions.action_catalog import ActionCatalog
 
-    session = next(get_session())
-    catalog = ActionCatalog(session=session)
-    actions = catalog.get_all_actions()
+    def _list_actions(session):
+        catalog = ActionCatalog(session=session)
+        actions = catalog.get_all_actions()
 
-    return [
-        ActionResponse(
-            id=str(a.id),
-            code=a.code,
-            title=a.title,
-            description=a.description,
-            heuristic=a.heuristic,
-            spi_min=a.spi_min,
-            spi_max=a.spi_max,
-            impact_formula=a.impact_formula,
-            base_cost=a.base_cost,
-            default_urgency_days=a.default_urgency_days,
-            parameter_schema=a.parameter_schema,
-        )
-        for a in actions
-    ]
+        return [
+            ActionResponse(
+                id=str(a.id),
+                code=a.code,
+                title=a.title,
+                description=a.description,
+                heuristic=a.heuristic,
+                spi_min=a.spi_min,
+                spi_max=a.spi_max,
+                impact_formula=a.impact_formula,
+                base_cost=a.base_cost,
+                default_urgency_days=a.default_urgency_days,
+                parameter_schema=a.parameter_schema,
+            )
+            for a in actions
+        ]
+
+    return execute_with_retry(_list_actions)
 
 
 @router.get("/{action_code}", response_model=ActionResponse)
@@ -178,30 +180,32 @@ def get_action(action_code: str):
     except Exception:
         pass
 
-    # Full database mode
-    from src.db.connection import get_session
+    # Full database mode with retry
+    from src.db.retry import execute_with_retry
     from src.actions.action_catalog import ActionCatalog
 
-    session = next(get_session())
-    catalog = ActionCatalog(session=session)
-    action = catalog.get_action_by_code(action_code)
+    def _get_action(session):
+        catalog = ActionCatalog(session=session)
+        action = catalog.get_action_by_code(action_code)
 
-    if not action:
-        raise HTTPException(status_code=404, detail=f"Action '{action_code}' not found")
+        if not action:
+            raise HTTPException(status_code=404, detail=f"Action '{action_code}' not found")
 
-    return ActionResponse(
-        id=str(action.id),
-        code=action.code,
-        title=action.title,
-        description=action.description,
-        heuristic=action.heuristic,
-        spi_min=action.spi_min,
-        spi_max=action.spi_max,
-        impact_formula=action.impact_formula,
-        base_cost=action.base_cost,
-        default_urgency_days=action.default_urgency_days,
-        parameter_schema=action.parameter_schema,
-    )
+        return ActionResponse(
+            id=str(action.id),
+            code=action.code,
+            title=action.title,
+            description=action.description,
+            heuristic=action.heuristic,
+            spi_min=action.spi_min,
+            spi_max=action.spi_max,
+            impact_formula=action.impact_formula,
+            base_cost=action.base_cost,
+            default_urgency_days=action.default_urgency_days,
+            parameter_schema=action.parameter_schema,
+        )
+
+    return execute_with_retry(_get_action)
 
 
 @router.post("/recommended", response_model=RecommendedActionsResponse)

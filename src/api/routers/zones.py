@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from src.config.settings import get_settings
 from src.api.schemas.zones import ZoneResponse, ZoneListResponse, ZoneEnergyPricesUpdate, ZoneRegionalCodesUpdate, ZoneCreate
+from src.db.retry import execute_with_retry
 
 router = APIRouter(prefix="/zones", tags=["zones"])
 
@@ -45,41 +46,41 @@ def create_zone(request: ZoneCreate):
             detail="Creating zones requires database. Configure DATABASE_URL.",
         )
 
-    from src.db.connection import get_session
     from src.db.models import Zone
 
-    session = next(get_session())
+    def _create_zone(session):
+        # Check if slug already exists
+        existing = session.query(Zone).filter(Zone.slug == request.slug).first()
+        if existing:
+            raise HTTPException(status_code=400, detail=f"Zone with slug '{request.slug}' already exists")
 
-    # Check if slug already exists
-    existing = session.query(Zone).filter(Zone.slug == request.slug).first()
-    if existing:
-        raise HTTPException(status_code=400, detail=f"Zone with slug '{request.slug}' already exists")
+        zone = Zone(
+            name=request.name,
+            slug=request.slug,
+            latitude=request.latitude,
+            longitude=request.longitude,
+            country_code=request.country_code.upper() if request.country_code else None,
+            state_code=request.state_code.upper() if request.state_code else None,
+        )
+        session.add(zone)
+        session.commit()
+        session.refresh(zone)
 
-    zone = Zone(
-        name=request.name,
-        slug=request.slug,
-        latitude=request.latitude,
-        longitude=request.longitude,
-        country_code=request.country_code.upper() if request.country_code else None,
-        state_code=request.state_code.upper() if request.state_code else None,
-    )
-    session.add(zone)
-    session.commit()
-    session.refresh(zone)
+        return ZoneResponse(
+            id=str(zone.id),
+            name=zone.name,
+            slug=zone.slug,
+            latitude=zone.latitude,
+            longitude=zone.longitude,
+            energy_price_usd_mwh=zone.energy_price_usd_mwh,
+            fuel_price_usd_mmbtu=zone.fuel_price_usd_mmbtu,
+            currency=zone.currency,
+            country_code=zone.country_code,
+            state_code=zone.state_code,
+            created_at=zone.created_at,
+        )
 
-    return ZoneResponse(
-        id=str(zone.id),
-        name=zone.name,
-        slug=zone.slug,
-        latitude=zone.latitude,
-        longitude=zone.longitude,
-        energy_price_usd_mwh=zone.energy_price_usd_mwh,
-        fuel_price_usd_mmbtu=zone.fuel_price_usd_mmbtu,
-        currency=zone.currency,
-        country_code=zone.country_code,
-        state_code=zone.state_code,
-        created_at=zone.created_at,
-    )
+    return execute_with_retry(_create_zone)
 
 
 @router.get("", response_model=ZoneListResponse)
@@ -220,47 +221,47 @@ def update_zone_energy_prices(zone_id: str, request: ZoneEnergyPricesUpdate):
             detail="Energy prices require database. Configure DATABASE_URL.",
         )
 
-    from src.db.connection import get_session
     from src.db.models import Zone
     from uuid import UUID
 
-    session = next(get_session())
+    def _update_energy_prices(session):
+        # Find zone
+        zone = session.query(Zone).filter(Zone.slug == zone_id).first()
+        if not zone:
+            try:
+                zone = session.query(Zone).filter(Zone.id == UUID(zone_id)).first()
+            except ValueError:
+                pass
 
-    # Find zone
-    zone = session.query(Zone).filter(Zone.slug == zone_id).first()
-    if not zone:
-        try:
-            zone = session.query(Zone).filter(Zone.id == UUID(zone_id)).first()
-        except ValueError:
-            pass
+        if not zone:
+            raise HTTPException(status_code=404, detail=f"Zone '{zone_id}' not found")
 
-    if not zone:
-        raise HTTPException(status_code=404, detail=f"Zone '{zone_id}' not found")
+        # Update prices
+        if request.energy_price_usd_mwh is not None:
+            zone.energy_price_usd_mwh = request.energy_price_usd_mwh
+        if request.fuel_price_usd_mmbtu is not None:
+            zone.fuel_price_usd_mmbtu = request.fuel_price_usd_mmbtu
+        if request.currency is not None:
+            zone.currency = request.currency
 
-    # Update prices
-    if request.energy_price_usd_mwh is not None:
-        zone.energy_price_usd_mwh = request.energy_price_usd_mwh
-    if request.fuel_price_usd_mmbtu is not None:
-        zone.fuel_price_usd_mmbtu = request.fuel_price_usd_mmbtu
-    if request.currency is not None:
-        zone.currency = request.currency
+        session.commit()
+        session.refresh(zone)
 
-    session.commit()
-    session.refresh(zone)
+        return ZoneResponse(
+            id=str(zone.id),
+            name=zone.name,
+            slug=zone.slug,
+            latitude=zone.latitude,
+            longitude=zone.longitude,
+            energy_price_usd_mwh=zone.energy_price_usd_mwh,
+            fuel_price_usd_mmbtu=zone.fuel_price_usd_mmbtu,
+            currency=zone.currency,
+            country_code=zone.country_code,
+            state_code=zone.state_code,
+            created_at=zone.created_at,
+        )
 
-    return ZoneResponse(
-        id=str(zone.id),
-        name=zone.name,
-        slug=zone.slug,
-        latitude=zone.latitude,
-        longitude=zone.longitude,
-        energy_price_usd_mwh=zone.energy_price_usd_mwh,
-        fuel_price_usd_mmbtu=zone.fuel_price_usd_mmbtu,
-        currency=zone.currency,
-        country_code=zone.country_code,
-        state_code=zone.state_code,
-        created_at=zone.created_at,
-    )
+    return execute_with_retry(_update_energy_prices)
 
 
 @router.patch("/{zone_id}/regional-codes", response_model=ZoneResponse)
@@ -279,42 +280,42 @@ def update_zone_regional_codes(zone_id: str, request: ZoneRegionalCodesUpdate):
             detail="Regional codes require database. Configure DATABASE_URL.",
         )
 
-    from src.db.connection import get_session
     from src.db.models import Zone
     from uuid import UUID
 
-    session = next(get_session())
+    def _update_regional_codes(session):
+        # Find zone
+        zone = session.query(Zone).filter(Zone.slug == zone_id).first()
+        if not zone:
+            try:
+                zone = session.query(Zone).filter(Zone.id == UUID(zone_id)).first()
+            except ValueError:
+                pass
 
-    # Find zone
-    zone = session.query(Zone).filter(Zone.slug == zone_id).first()
-    if not zone:
-        try:
-            zone = session.query(Zone).filter(Zone.id == UUID(zone_id)).first()
-        except ValueError:
-            pass
+        if not zone:
+            raise HTTPException(status_code=404, detail=f"Zone '{zone_id}' not found")
 
-    if not zone:
-        raise HTTPException(status_code=404, detail=f"Zone '{zone_id}' not found")
+        # Update regional codes
+        if request.country_code is not None:
+            zone.country_code = request.country_code.upper()
+        if request.state_code is not None:
+            zone.state_code = request.state_code.upper()
 
-    # Update regional codes
-    if request.country_code is not None:
-        zone.country_code = request.country_code.upper()
-    if request.state_code is not None:
-        zone.state_code = request.state_code.upper()
+        session.commit()
+        session.refresh(zone)
 
-    session.commit()
-    session.refresh(zone)
+        return ZoneResponse(
+            id=str(zone.id),
+            name=zone.name,
+            slug=zone.slug,
+            latitude=zone.latitude,
+            longitude=zone.longitude,
+            energy_price_usd_mwh=zone.energy_price_usd_mwh,
+            fuel_price_usd_mmbtu=zone.fuel_price_usd_mmbtu,
+            currency=zone.currency,
+            country_code=zone.country_code,
+            state_code=zone.state_code,
+            created_at=zone.created_at,
+        )
 
-    return ZoneResponse(
-        id=str(zone.id),
-        name=zone.name,
-        slug=zone.slug,
-        latitude=zone.latitude,
-        longitude=zone.longitude,
-        energy_price_usd_mwh=zone.energy_price_usd_mwh,
-        fuel_price_usd_mmbtu=zone.fuel_price_usd_mmbtu,
-        currency=zone.currency,
-        country_code=zone.country_code,
-        state_code=zone.state_code,
-        created_at=zone.created_at,
-    )
+    return execute_with_retry(_update_regional_codes)
