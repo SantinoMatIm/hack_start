@@ -37,6 +37,7 @@ class ActionResponse(BaseModel):
 class RecommendedActionResponse(BaseModel):
     """Response schema for a recommended action."""
 
+    action_instance_id: str  # UUID for simulation
     action_code: str
     title: str
     description: Optional[str]

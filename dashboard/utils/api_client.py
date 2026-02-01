@@ -84,18 +84,15 @@ class APIClient:
     def run_simulation(
         self,
         zone_id: str,
-        profile: str,
-        action_codes: Optional[list] = None,
+        action_instance_ids: list[str],
         projection_days: int = 90
     ) -> dict:
-        """Run act vs. not-act simulation"""
+        """Run simulation with selected ActionInstances (from recommended actions)."""
         payload = {
             "zone_id": zone_id,
-            "profile": profile,
+            "action_instance_ids": action_instance_ids,
             "projection_days": projection_days
         }
-        if action_codes:
-            payload["action_codes"] = action_codes
         return self._post("/scenarios/simulate", json=payload)
 
     def trigger_ingestion(self, zone_id: Optional[str] = None) -> dict:

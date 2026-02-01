@@ -127,10 +127,12 @@ def main():
 
     st.markdown("---")
 
-    # Selected actions summary
+    # Selected actions (from Actions page - must have action_instance_ids)
     selected_actions = st.session_state.selected_actions or []
+    action_instance_ids = [a["action_instance_id"] for a in selected_actions if isinstance(a, dict) and a.get("action_instance_id")]
+    codes_display = [a.get("code", "") for a in selected_actions if isinstance(a, dict)] or selected_actions  # legacy: list of codes
 
-    if selected_actions:
+    if action_instance_ids:
         st.markdown(f"""
         <div class="card fade-in" style="margin-bottom: 24px;">
             <div style="display: flex; align-items: center; gap: 12px;">
@@ -142,7 +144,7 @@ def main():
                         Selected Actions for Simulation
                     </div>
                     <div style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin-top: 2px;">
-                        {len(selected_actions)} action{'s' if len(selected_actions) != 1 else ''}: {', '.join(selected_actions[:3])}{'...' if len(selected_actions) > 3 else ''}
+                        {len(action_instance_ids)} action{'s' if len(action_instance_ids) != 1 else ''}: {', '.join(str(c) for c in codes_display[:3])}{'...' if len(codes_display) > 3 else ''}
                     </div>
                 </div>
             </div>
@@ -150,64 +152,63 @@ def main():
         """, unsafe_allow_html=True)
     else:
         st.markdown(f"""
-        <div class="alert info" style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
-            {icon_span("info", 18, "#2563EB")}
-            <span>No specific actions selected. Simulation will use all recommended actions.</span>
+        <div class="alert warning" style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
+            {icon_span("alert-circle", 18, "#D97706")}
+            <span>No actions selected. Go to the Actions page, get recommended actions, select at least one, then run simulation.</span>
         </div>
         """, unsafe_allow_html=True)
 
-    # Run simulation button
+    # Run simulation button (disabled when no actions)
     run_simulation = st.button(
         "Run Simulation",
         type="primary",
-        use_container_width=True
+        use_container_width=True,
+        disabled=not action_instance_ids
     )
 
-    if run_simulation:
+    if run_simulation and action_instance_ids:
         with st.spinner("Running simulation..."):
             result = api.run_simulation(
                 zone_id=zone_id,
-                profile=profile,
-                action_codes=selected_actions if selected_actions else None,
+                action_instance_ids=action_instance_ids,
                 projection_days=projection_days
             )
 
             if result and "error" not in result:
-                st.session_state.simulation_result = result
-            else:
-                # Demo fallback
-                st.markdown(f"""
-                <div class="alert warning" style="display: flex; align-items: center; gap: 12px; margin-top: 16px;">
-                    {icon_span("alert-circle", 18, "#D97706")}
-                    <span>Could not connect to API. Showing demo simulation.</span>
-                </div>
-                """, unsafe_allow_html=True)
-                current_spi = st.session_state.current_risk.get("spi_6m", -1.72) if st.session_state.current_risk else -1.72
-
+                # Normalize API response to chart format (no_action_scenario, with_action_scenario)
+                no_a = result.get("no_action", {})
+                with_a = result.get("with_action", {})
+                traj_no = no_a.get("trajectory", [])
+                traj_with = with_a.get("trajectory", [])
+                current_spi = (
+                    traj_no[0].get("projected_spi", no_a.get("ending_spi"))
+                    if traj_no
+                    else no_a.get("ending_spi", -1.5)
+                )
                 st.session_state.simulation_result = {
-                    "zone_id": zone_id,
-                    "profile": profile,
+                    "zone_id": result.get("zone_id"),
                     "current_spi": current_spi,
                     "no_action_scenario": {
-                        "projected_spi": current_spi - 0.4,
-                        "projected_risk_level": "CRITICAL",
-                        "days_to_critical": 24,
-                        "description": "Without intervention, conditions will deteriorate to critical levels."
+                        "projected_spi": no_a.get("ending_spi"),
+                        "projected_risk_level": no_a.get("ending_risk_level"),
+                        "days_to_critical": no_a.get("days_to_critical"),
+                        "spi_projection": [p.get("projected_spi") for p in traj_no] if traj_no else [],
                     },
                     "with_action_scenario": {
-                        "projected_spi": current_spi - 0.15,
-                        "projected_risk_level": "HIGH",
-                        "days_to_critical": 52,
-                        "description": "With selected actions, critical threshold is extended significantly."
+                        "projected_spi": with_a.get("ending_spi"),
+                        "projected_risk_level": with_a.get("ending_risk_level"),
+                        "days_to_critical": with_a.get("days_to_critical"),
+                        "spi_projection": [p.get("projected_spi") for p in traj_with] if traj_with else [],
                     },
                     "actions_applied": [
-                        {"code": "H4_LAWN_BAN", "title": "Lawn/Garden Restriction", "days_gained": 19},
-                        {"code": "H2_PRESSURE_REDUCTION", "title": "Pressure Management", "days_gained": 6},
-                        {"code": "H3_AWARENESS_CAMPAIGN", "title": "Public Awareness", "days_gained": 3}
+                        {"code": a.get("code"), "title": a.get("title"), "days_gained": a.get("days_gained", 0)}
+                        for a in result.get("actions_applied", [])
                     ],
-                    "total_days_gained": 28,
-                    "projection_days": projection_days
+                    "total_days_gained": result.get("comparison", {}).get("days_gained", 0),
+                    "projection_days": projection_days,
                 }
+            else:
+                st.session_state.simulation_result = None
 
     # Display simulation results
     simulation = st.session_state.simulation_result
