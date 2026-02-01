@@ -12,6 +12,7 @@ from src.heuristics.h3_public_communication import H3PublicCommunication
 from src.heuristics.h4_nonessential_restriction import H4NonessentialRestriction
 from src.heuristics.h5_source_reallocation import H5SourceReallocation
 from src.heuristics.h6_severity_escalation import H6SeverityEscalation
+from src.heuristics.h7_preventive_monitoring import H7PreventiveMonitoring
 
 
 class HeuristicRegistry:
@@ -30,6 +31,7 @@ class HeuristicRegistry:
             H4NonessentialRestriction(),
             H5SourceReallocation(),
             H6SeverityEscalation(),
+            H7PreventiveMonitoring(),
         ]
 
     def get_heuristic(self, heuristic_id: str) -> Optional[BaseHeuristic]:
