@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, GlassCard } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
+import { Button, AnimatedButton } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { ActionCard } from '@/components/action-card';
@@ -12,6 +13,8 @@ import { ZoneSelector } from '@/components/zone-selector';
 import { ProfileSelector } from '@/components/profile-selector';
 import { RiskBadge } from '@/components/risk-badge';
 import { TrendIndicator } from '@/components/trend-indicator';
+import { AnimatedCounter } from '@/components/ui/animated-counter';
+import { useGSAP, gsap, prefersReducedMotion } from '@/lib/animations';
 import { 
   api, 
   DEMO_ZONES,
@@ -25,7 +28,8 @@ import {
   Zap,
   ArrowRight,
   CheckCircle2,
-  Loader2
+  Loader2,
+  Sparkles
 } from 'lucide-react';
 
 // Demo recommended actions for fallback
@@ -92,6 +96,8 @@ export default function ActionsPage() {
   const [error, setError] = useState<string | null>(null);
   const [isDemo, setIsDemo] = useState(false);
 
+  const cardsRef = useRef<HTMLDivElement>(null);
+
   const fetchRecommendations = async () => {
     setLoading(true);
     setError(null);
@@ -121,6 +127,25 @@ export default function ActionsPage() {
     fetchRecommendations();
   }, [selectedZone, selectedProfile]);
 
+  // GSAP animation for cards
+  useGSAP(() => {
+    if (prefersReducedMotion() || loading || !recommendations) return;
+
+    if (cardsRef.current) {
+      gsap.fromTo(cardsRef.current.querySelectorAll('.action-card-wrapper'),
+        { opacity: 0, y: 30, scale: 0.98 },
+        {
+          opacity: 1,
+          y: 0,
+          scale: 1,
+          duration: 0.5,
+          stagger: 0.1,
+          ease: 'power2.out',
+        }
+      );
+    }
+  }, { dependencies: [loading, recommendations] });
+
   const toggleAction = (code: string) => {
     setSelectedActions(prev => {
       const next = new Set(prev);
@@ -134,7 +159,6 @@ export default function ActionsPage() {
   };
 
   const proceedToSimulation = () => {
-    // Store selected actions in localStorage for simulation page
     localStorage.setItem('selectedActions', JSON.stringify(Array.from(selectedActions)));
     localStorage.setItem('selectedZone', selectedZone);
     router.push('/simulation');
@@ -145,11 +169,19 @@ export default function ActionsPage() {
     .reduce((sum, a) => sum + a.expected_effect.days_gained, 0) || 0;
 
   return (
-    <div className="container py-8 animate-fade-in">
+    <div className="container py-8">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+      <motion.div 
+        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8"
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+      >
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Recommended Actions</h1>
+          <span className="text-sm font-semibold text-primary mb-1 block tracking-wide uppercase">
+            Action Recommendations
+          </span>
+          <h1 className="text-3xl font-bold tracking-tight">Smart Actions</h1>
           <p className="text-muted-foreground mt-1">
             AI-parameterized actions based on current risk context
           </p>
@@ -165,17 +197,23 @@ export default function ActionsPage() {
             onChange={setSelectedProfile}
           />
         </div>
-      </div>
+      </motion.div>
 
       {/* Demo Mode Alert */}
       {isDemo && (
-        <Alert className="mb-6">
-          <Info className="h-4 w-4" />
-          <AlertTitle>Demo Mode</AlertTitle>
-          <AlertDescription>
-            Showing sample recommendations. Connect to API for AI-parameterized actions.
-          </AlertDescription>
-        </Alert>
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <Alert className="mb-6 bg-primary/5 border-primary/20">
+            <Info className="h-4 w-4 text-primary" />
+            <AlertTitle className="text-primary">Demo Mode</AlertTitle>
+            <AlertDescription>
+              Showing sample recommendations. Connect to API for AI-parameterized actions.
+            </AlertDescription>
+          </Alert>
+        </motion.div>
       )}
 
       {/* Error Alert */}
@@ -189,46 +227,57 @@ export default function ActionsPage() {
 
       {/* Context Summary */}
       {recommendations && (
-        <Card className="mb-6">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Current Context</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Risk:</span>
-                <RiskBadge level={recommendations.context.risk_level} />
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+        >
+          <Card className="mb-8">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                Current Context
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap items-center gap-4 md:gap-6">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Risk:</span>
+                  <RiskBadge level={recommendations.context.risk_level} />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">SPI:</span>
+                  <span className="font-mono font-semibold text-foreground">{recommendations.context.spi.toFixed(2)}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Trend:</span>
+                  <TrendIndicator trend={recommendations.context.trend} size="sm" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Days to Critical:</span>
+                  <span className="font-mono font-semibold text-red-600">
+                    ~{recommendations.context.days_to_critical}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Heuristics:</span>
+                  <div className="flex gap-1">
+                    {recommendations.activated_heuristics.map(h => (
+                      <Badge key={h.id} variant="outline" className="text-xs">{h.id}</Badge>
+                    ))}
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">SPI:</span>
-                <span className="font-mono font-medium">{recommendations.context.spi.toFixed(2)}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Trend:</span>
-                <TrendIndicator trend={recommendations.context.trend} size="sm" />
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Days to Critical:</span>
-                <span className="font-mono font-medium text-red-600 dark:text-red-400">
-                  ~{recommendations.context.days_to_critical}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Heuristics:</span>
-                {recommendations.activated_heuristics.map(h => (
-                  <Badge key={h.id} variant="outline">{h.id}</Badge>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </motion.div>
       )}
 
       {/* Loading State */}
       {loading ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {[...Array(3)].map((_, i) => (
-            <Card key={i}>
+            <Card key={i} className="animate-pulse">
               <CardHeader>
                 <Skeleton className="h-5 w-3/4" />
                 <Skeleton className="h-4 w-1/2" />
@@ -244,61 +293,88 @@ export default function ActionsPage() {
       ) : recommendations ? (
         <>
           {/* Actions Grid */}
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
+          <div ref={cardsRef} className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
             {recommendations.actions.map((action) => (
-              <ActionCard
-                key={action.action_code}
-                action={action}
-                selected={selectedActions.has(action.action_code)}
-                onToggle={toggleAction}
-              />
+              <div key={action.action_code} className="action-card-wrapper">
+                <ActionCard
+                  action={action}
+                  selected={selectedActions.has(action.action_code)}
+                  onToggle={toggleAction}
+                />
+              </div>
             ))}
           </div>
 
-          {/* Selection Summary & CTA */}
-          {selectedActions.size > 0 && (
-            <Card className="sticky bottom-4 border-primary bg-background/95 backdrop-blur shadow-lg">
-              <CardContent className="py-4">
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="h-5 w-5 text-primary" />
-                      <span className="font-medium">
-                        {selectedActions.size} action{selectedActions.size > 1 ? 's' : ''} selected
-                      </span>
-                    </div>
-                    <div className="h-6 w-px bg-border" />
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">Est. days gained:</span>
-                      <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
-                        +{totalDaysGained}
-                      </span>
-                    </div>
-                  </div>
-                  <Button onClick={proceedToSimulation} className="gap-2">
-                    <Zap className="h-4 w-4" />
-                    Simulate Scenario
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           {/* Empty State */}
           {selectedActions.size === 0 && (
-            <Card className="border-dashed">
-              <CardContent className="py-8 text-center">
-                <Zap className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                <p className="font-medium">Select actions to simulate</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Click on action cards above to select them for simulation
-                </p>
-              </CardContent>
-            </Card>
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Card className="border-dashed border-2">
+                <CardContent className="py-12 text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mx-auto mb-4">
+                    <Zap className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <p className="font-semibold text-lg mb-1">Select actions to simulate</p>
+                  <p className="text-sm text-muted-foreground">
+                    Click on action cards above to select them for simulation
+                  </p>
+                </CardContent>
+              </Card>
+            </motion.div>
           )}
         </>
       ) : null}
+
+      {/* Floating Selection Summary & CTA */}
+      <AnimatePresence>
+        {selectedActions.size > 0 && (
+          <motion.div
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-2xl px-4"
+            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 50, scale: 0.95 }}
+            transition={{ 
+              type: 'spring', 
+              stiffness: 400, 
+              damping: 30 
+            }}
+          >
+            <div className="glass rounded-2xl shadow-2xl border border-border/60 p-4">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-xl bg-primary/10">
+                      <CheckCircle2 className="h-5 w-5 text-primary" />
+                    </div>
+                    <span className="font-semibold">
+                      {selectedActions.size} action{selectedActions.size > 1 ? 's' : ''} selected
+                    </span>
+                  </div>
+                  <div className="h-8 w-px bg-border hidden sm:block" />
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Est. days gained:</span>
+                    <span className="text-2xl font-bold text-emerald-600">
+                      +<AnimatedCounter value={totalDaysGained} />
+                    </span>
+                  </div>
+                </div>
+                <AnimatedButton 
+                  onClick={proceedToSimulation} 
+                  size="lg"
+                  className="gap-2 shadow-lg shadow-primary/25"
+                >
+                  <Zap className="h-4 w-4" />
+                  Simulate Scenario
+                  <ArrowRight className="h-4 w-4" />
+                </AnimatedButton>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

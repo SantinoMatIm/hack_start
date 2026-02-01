@@ -13,19 +13,19 @@ interface RiskBadgeProps {
 const riskConfig: Record<RiskLevel, { label: string; className: string }> = {
   CRITICAL: {
     label: 'Critical',
-    className: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-400 dark:border-red-900',
+    className: 'bg-red-100 text-red-700 border-red-200',
   },
   HIGH: {
     label: 'High',
-    className: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-400 dark:border-orange-900',
+    className: 'bg-orange-100 text-orange-700 border-orange-200',
   },
   MEDIUM: {
     label: 'Medium',
-    className: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-400 dark:border-amber-900',
+    className: 'bg-amber-100 text-amber-700 border-amber-200',
   },
   LOW: {
     label: 'Low',
-    className: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-900',
+    className: 'bg-emerald-100 text-emerald-700 border-emerald-200',
   },
 };
 
@@ -44,7 +44,8 @@ export function RiskBadge({ level, size = 'md', pulse = false }: RiskBadgeProps)
       className={cn(
         config.className,
         sizeClasses[size],
-        pulse && level === 'CRITICAL' && 'animate-pulse-risk'
+        'font-medium',
+        pulse && level === 'CRITICAL' && 'animate-pulse-subtle'
       )}
     >
       {config.label}
