@@ -39,8 +39,8 @@ def get_db_session() -> Optional[Session]:
         settings = get_settings()
         if settings.is_demo_mode:
             return None
-        from src.db.connection import get_session
-        return next(get_session())
+        from src.db.retry import get_session_with_retry
+        return get_session_with_retry()
     except Exception:
         return None
 
@@ -77,81 +77,83 @@ def get_current_risk(
     except Exception:
         pass
 
-    # Full database mode
-    from src.db.connection import get_session
+    # Full database mode with retry for transient SSL errors
+    from src.db.retry import get_session_with_retry
     from src.db.models import Zone, RiskSnapshot
     from src.ingestion.orchestrator import IngestionOrchestrator
     from src.risk_engine.risk_classifier import RiskClassifier
     from datetime import timedelta
 
-    session = next(get_session())
+    session = get_session_with_retry()
+    try:
+        # Get zone
+        zone = session.query(Zone).filter(Zone.slug == zone_id).first()
+        if not zone:
+            try:
+                from uuid import UUID
+                zone = session.query(Zone).filter(Zone.id == UUID(zone_id)).first()
+            except ValueError:
+                pass
 
-    # Get zone
-    zone = session.query(Zone).filter(Zone.slug == zone_id).first()
-    if not zone:
-        try:
-            from uuid import UUID
-            zone = session.query(Zone).filter(Zone.id == UUID(zone_id)).first()
-        except ValueError:
-            pass
+        if not zone:
+            raise HTTPException(status_code=404, detail=f"Zone '{zone_id}' not found")
 
-    if not zone:
-        raise HTTPException(status_code=404, detail=f"Zone '{zone_id}' not found")
+        # Check for recent snapshot (less than 1 day old)
+        recent_threshold = datetime.utcnow() - timedelta(days=1)
 
-    # Check for recent snapshot (less than 1 day old)
-    recent_threshold = datetime.utcnow() - timedelta(days=1)
-
-    recent_snapshot = (
-        session.query(RiskSnapshot)
-        .filter(RiskSnapshot.zone_id == zone.id)
-        .filter(RiskSnapshot.created_at >= recent_threshold)
-        .order_by(RiskSnapshot.created_at.desc())
-        .first()
-    )
-
-    if recent_snapshot:
-        # Return cached snapshot
-        return RiskResponse(
-            zone_id=zone.slug,
-            spi_6m=recent_snapshot.spi_6m,
-            risk_level=recent_snapshot.risk_level,
-            trend=recent_snapshot.trend,
-            days_to_critical=recent_snapshot.days_to_critical,
-            last_updated=recent_snapshot.created_at.isoformat(),
+        recent_snapshot = (
+            session.query(RiskSnapshot)
+            .filter(RiskSnapshot.zone_id == zone.id)
+            .filter(RiskSnapshot.created_at >= recent_threshold)
+            .order_by(RiskSnapshot.created_at.desc())
+            .first()
         )
 
-    # Calculate fresh risk assessment
-    try:
-        # Get precipitation data
-        orchestrator = IngestionOrchestrator(session=session)
-        precip_df = orchestrator.get_precipitation_series(zone.id)
-
-        if precip_df.empty:
-            raise HTTPException(
-                status_code=400,
-                detail=f"No precipitation data available for zone '{zone_id}'. Run ingestion first.",
+        if recent_snapshot:
+            # Return cached snapshot
+            return RiskResponse(
+                zone_id=zone.slug,
+                spi_6m=recent_snapshot.spi_6m,
+                risk_level=recent_snapshot.risk_level,
+                trend=recent_snapshot.trend,
+                days_to_critical=recent_snapshot.days_to_critical,
+                last_updated=recent_snapshot.created_at.isoformat(),
             )
 
-        # Calculate risk
-        classifier = RiskClassifier(session=session)
-        assessment = classifier.assess_risk(
-            daily_precip=precip_df,
-            zone_id=zone.id,
-            save_snapshot=True,
-        )
+        # Calculate fresh risk assessment
+        try:
+            # Get precipitation data
+            orchestrator = IngestionOrchestrator(session=session)
+            precip_df = orchestrator.get_precipitation_series(zone.id)
 
-        return RiskResponse(
-            zone_id=zone.slug,
-            spi_6m=assessment["spi_6m"],
-            risk_level=assessment["risk_level"].value,
-            trend=assessment["trend"].value,
-            days_to_critical=assessment["days_to_critical"],
-            trend_details=TrendDetails(**assessment["trend_details"]) if "trend_details" in assessment else None,
-            last_updated=assessment["last_updated"],
-        )
+            if precip_df.empty:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"No precipitation data available for zone '{zone_id}'. Run ingestion first.",
+                )
 
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+            # Calculate risk
+            classifier = RiskClassifier(session=session)
+            assessment = classifier.assess_risk(
+                daily_precip=precip_df,
+                zone_id=zone.id,
+                save_snapshot=True,
+            )
+
+            return RiskResponse(
+                zone_id=zone.slug,
+                spi_6m=assessment["spi_6m"],
+                risk_level=assessment["risk_level"].value,
+                trend=assessment["trend"].value,
+                days_to_critical=assessment["days_to_critical"],
+                trend_details=TrendDetails(**assessment["trend_details"]) if "trend_details" in assessment else None,
+                last_updated=assessment["last_updated"],
+            )
+
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        session.close()
 
 
 @router.get("/history", response_model=RiskHistoryResponse)
@@ -179,28 +181,33 @@ def get_risk_history(
     except Exception:
         pass
 
-    # Full database mode
-    from src.db.connection import get_session
+    # Full database mode with retry for transient SSL errors
+    from src.db.retry import execute_with_retry
     from src.db.models import Zone, RiskSnapshot
     from datetime import timedelta
 
-    session = next(get_session())
+    def fetch_risk_history(session):
+        # Get zone
+        zone = session.query(Zone).filter(Zone.slug == zone_id).first()
+        if not zone:
+            return None, None  # Signal not found
+        
+        # Get snapshots
+        since = datetime.utcnow() - timedelta(days=days)
+        
+        snapshots = (
+            session.query(RiskSnapshot)
+            .filter(RiskSnapshot.zone_id == zone.id)
+            .filter(RiskSnapshot.created_at >= since)
+            .order_by(RiskSnapshot.created_at.desc())
+            .all()
+        )
+        return zone, snapshots
 
-    # Get zone
-    zone = session.query(Zone).filter(Zone.slug == zone_id).first()
-    if not zone:
+    zone, snapshots = execute_with_retry(fetch_risk_history)
+    
+    if zone is None:
         raise HTTPException(status_code=404, detail=f"Zone '{zone_id}' not found")
-
-    # Get snapshots
-    since = datetime.utcnow() - timedelta(days=days)
-
-    snapshots = (
-        session.query(RiskSnapshot)
-        .filter(RiskSnapshot.zone_id == zone.id)
-        .filter(RiskSnapshot.created_at >= since)
-        .order_by(RiskSnapshot.created_at.desc())
-        .all()
-    )
 
     return RiskHistoryResponse(
         zone_id=zone.slug,

@@ -60,6 +60,20 @@ def init_db():
     print("Database ready (NullPool - no connection pooling)")
 
 
+def dispose_engine():
+    """Dispose the current engine and force recreation on next use.
+    
+    This is useful when SSL connections become stale and need to be reset.
+    """
+    global _engine
+    if _engine is not None:
+        try:
+            _engine.dispose()
+        except Exception:
+            pass
+        _engine = None
+
+
 def get_session() -> Generator[Session, None, None]:
     """Get database session dependency for FastAPI.
     

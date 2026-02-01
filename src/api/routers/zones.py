@@ -101,51 +101,51 @@ def list_zones():
         pass
 
     # Full database mode with retry for transient errors
-    from src.db.retry import get_session_with_retry
+    from src.db.retry import execute_with_retry
     from src.db.models import Zone
 
-    session = get_session_with_retry()
-    try:
-        zones = session.query(Zone).all()
+    def fetch_zones(session):
+        return session.query(Zone).all()
 
-        return ZoneListResponse(
-            zones=[
-                ZoneResponse(
-                    id=str(zone.id),
-                    name=zone.name,
-                    slug=zone.slug,
-                    latitude=zone.latitude,
-                    longitude=zone.longitude,
-                    energy_price_usd_mwh=zone.energy_price_usd_mwh,
-                    fuel_price_usd_mmbtu=zone.fuel_price_usd_mmbtu,
-                    currency=zone.currency,
-                    country_code=zone.country_code,
-                    state_code=zone.state_code,
-                    created_at=zone.created_at,
-                )
-                for zone in zones
-            ],
-            total=len(zones),
-        )
-    finally:
-        session.close()
+    zones = execute_with_retry(fetch_zones)
+
+    return ZoneListResponse(
+        zones=[
+            ZoneResponse(
+                id=str(zone.id),
+                name=zone.name,
+                slug=zone.slug,
+                latitude=zone.latitude,
+                longitude=zone.longitude,
+                energy_price_usd_mwh=zone.energy_price_usd_mwh,
+                fuel_price_usd_mmbtu=zone.fuel_price_usd_mmbtu,
+                currency=zone.currency,
+                country_code=zone.country_code,
+                state_code=zone.state_code,
+                created_at=zone.created_at,
+            )
+            for zone in zones
+        ],
+        total=len(zones),
+    )
 
 
 @router.get("/debug/counts")
 def get_table_counts():
     """Debug endpoint to check table counts."""
-    from src.db.connection import get_session
+    from src.db.retry import execute_with_retry
     from src.db.models import Zone, PrecipitationRecord, RiskSnapshot, Action, ActionInstance
 
-    session = next(get_session())
+    def fetch_counts(session):
+        return {
+            "zones": session.query(Zone).count(),
+            "precipitation_records": session.query(PrecipitationRecord).count(),
+            "risk_snapshots": session.query(RiskSnapshot).count(),
+            "actions": session.query(Action).count(),
+            "action_instances": session.query(ActionInstance).count(),
+        }
 
-    return {
-        "zones": session.query(Zone).count(),
-        "precipitation_records": session.query(PrecipitationRecord).count(),
-        "risk_snapshots": session.query(RiskSnapshot).count(),
-        "actions": session.query(Action).count(),
-        "action_instances": session.query(ActionInstance).count(),
-    }
+    return execute_with_retry(fetch_counts)
 
 
 @router.get("/{zone_id}", response_model=ZoneResponse)
@@ -169,22 +169,23 @@ def get_zone(zone_id: str):
     except Exception:
         pass
 
-    # Full database mode
-    from src.db.connection import get_session
+    # Full database mode with retry for transient errors
+    from src.db.retry import execute_with_retry
     from src.db.models import Zone
+    from uuid import UUID as PyUUID
 
-    session = next(get_session())
+    def fetch_zone(session):
+        # Try by slug first
+        zone = session.query(Zone).filter(Zone.slug == zone_id).first()
+        # Try by UUID if not found
+        if not zone:
+            try:
+                zone = session.query(Zone).filter(Zone.id == PyUUID(zone_id)).first()
+            except ValueError:
+                pass
+        return zone
 
-    # Try by slug first
-    zone = session.query(Zone).filter(Zone.slug == zone_id).first()
-
-    # Try by UUID if not found
-    if not zone:
-        try:
-            from uuid import UUID
-            zone = session.query(Zone).filter(Zone.id == UUID(zone_id)).first()
-        except ValueError:
-            pass
+    zone = execute_with_retry(fetch_zone)
 
     if not zone:
         raise HTTPException(status_code=404, detail=f"Zone '{zone_id}' not found")
