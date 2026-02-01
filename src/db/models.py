@@ -111,7 +111,7 @@ class ClimateTimeseries(Base):
 
 
 class RiskSnapshot(Base):
-    """Point-in-time risk assessment snapshots."""
+    """Point-in-time risk assessment snapshots with multi-scale SPI analysis."""
 
     __tablename__ = "risk_snapshots"
 
@@ -121,7 +121,44 @@ class RiskSnapshot(Base):
     zone_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("zones.id"), nullable=False
     )
-    spi_6m: Mapped[float] = mapped_column(Float, nullable=False)
+
+    # Multi-scale SPI values (1, 3, 6, 12, 24, 48 months)
+    spi_1m: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    spi_3m: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    spi_6m: Mapped[float] = mapped_column(Float, nullable=False)  # Primary indicator
+    spi_12m: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    spi_24m: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    spi_48m: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+    # Statistical trend indicators (Mann-Kendall / Sen slope)
+    mann_kendall_trend: Mapped[Optional[str]] = mapped_column(
+        String(20), nullable=True
+    )  # decreasing, no_trend, increasing
+    mann_kendall_confidence: Mapped[Optional[float]] = mapped_column(
+        Float, nullable=True
+    )  # Confidence percentage (0-100)
+    sen_slope: Mapped[Optional[float]] = mapped_column(
+        Float, nullable=True
+    )  # Slope per month
+
+    # Drought magnitude (Run Theory)
+    drought_magnitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    drought_duration_months: Mapped[Optional[int]] = mapped_column(
+        Integer, nullable=True
+    )
+    magnitude_percentile: Mapped[Optional[float]] = mapped_column(
+        Float, nullable=True
+    )  # Historical percentile (0-100)
+
+    # Markov transition probability
+    transition_prob_to_severe: Mapped[Optional[float]] = mapped_column(
+        Float, nullable=True
+    )  # P(severe) next period
+    markov_current_state: Mapped[Optional[str]] = mapped_column(
+        String(20), nullable=True
+    )  # normal, mild, moderate, severe, extreme
+
+    # Risk classification
     risk_level: Mapped[str] = mapped_column(
         String(20), nullable=False
     )  # LOW, MEDIUM, HIGH, CRITICAL
@@ -129,6 +166,12 @@ class RiskSnapshot(Base):
         String(20), nullable=False
     )  # IMPROVING, STABLE, WORSENING
     days_to_critical: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
+    # Heuristics activation summary
+    activated_heuristics: Mapped[Optional[list]] = mapped_column(
+        ARRAY(String(10)), nullable=True
+    )  # e.g., ['H1', 'H5', 'H11']
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, nullable=False
     )
