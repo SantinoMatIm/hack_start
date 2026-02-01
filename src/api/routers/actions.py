@@ -64,6 +64,7 @@ DEMO_ACTIONS = [
 
 DEMO_RECOMMENDED_ACTIONS = [
     {
+        "action_instance_id": "demo-instance-h4-lawn",
         "action_code": "H4_LAWN_BAN",
         "title": "Lawn/Garden Irrigation Restriction",
         "description": "Restrict lawn and garden irrigation during drought conditions",
@@ -80,6 +81,7 @@ DEMO_RECOMMENDED_ACTIONS = [
         "method": "demo"
     },
     {
+        "action_instance_id": "demo-instance-h2-pressure",
         "action_code": "H2_PRESSURE_REDUCTION",
         "title": "Network Pressure Reduction",
         "description": "Reduce water pressure in distribution network during off-peak hours",
@@ -95,6 +97,7 @@ DEMO_RECOMMENDED_ACTIONS = [
         "method": "demo"
     },
     {
+        "action_instance_id": "demo-instance-h3-awareness",
         "action_code": "H3_AWARENESS_CAMPAIGN",
         "title": "Public Awareness Campaign",
         "description": "Multi-channel public awareness campaign for water conservation",
@@ -249,6 +252,7 @@ def get_recommended_actions(
                 ],
                 actions=[
                     RecommendedActionResponse(
+                        action_instance_id=a["action_instance_id"],
                         action_code=a["action_code"],
                         title=a["title"],
                         description=a["description"],

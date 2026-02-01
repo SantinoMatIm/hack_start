@@ -1,12 +1,20 @@
-# Design Tokens Reference
+# Design Tokens
 
-**Shared Systems Pod — Frontend Decision Intelligence Organization**
+**Shared Systems Pod — Frontend Decision Intelligence Engineering Organization**
 
 ---
 
-## Purpose
+## Overview
 
-This document serves as the authoritative reference for all design tokens used in the frontend. Tokens are the single source of truth for visual decisions.
+Design tokens are the foundational values that define the visual language of the platform. All styling should reference these tokens rather than raw values.
+
+---
+
+## Token Location
+
+Tokens are defined in:
+- `frontend/src/app/globals.css` — CSS variables
+- Tailwind utility classes — Primary styling method
 
 ---
 
@@ -14,197 +22,237 @@ This document serves as the authoritative reference for all design tokens used i
 
 ### Base Colors
 
-| Token | Value | Usage |
-|-------|-------|-------|
-| `--color-white` | `#F2EDE9` | Warm white, primary background |
-| `--color-surface` | `#FFFFFF` | Pure white, cards and elevated surfaces |
-| `--color-black` | `#292929` | Near black, primary text |
-
-### Semantic Background Colors
-
-| Token | Value | Usage |
-|-------|-------|-------|
-| `--bg-primary` | `#F2EDE9` | Main page background |
-| `--bg-surface` | `#FFFFFF` | Cards, modals, elevated elements |
-| `--bg-dark` | `#292929` | Inverse sections, footer |
-
-### Text Colors
-
-| Token | Value | Usage |
-|-------|-------|-------|
-| `--text-primary` | `#292929` | Main body text |
-| `--text-inverse` | `#FFFFFF` | Text on dark backgrounds |
-| `--text-muted` | `#7E8076` | Secondary text, captions |
-
-### Action Colors
-
-| Token | Value | Usage |
-|-------|-------|-------|
-| `--action-primary` | `#E76237` | Primary CTA, accent color |
-| `--action-secondary` | `#292929` | Secondary actions |
-| `--accent-light` | `#D9D7CC` | Subtle accents |
-| `--accent-dark` | `#7E8076` | Muted accents |
+| Token | CSS Variable | Tailwind | Hex Value |
+|-------|--------------|----------|-----------|
+| Background | `--background` | `bg-background` | #FAFBFC |
+| Foreground | `--foreground` | `text-foreground` | #0F172A |
+| Card | `--card` | `bg-card` | #FFFFFF |
+| Primary | `--primary` | `bg-primary` / `text-primary` | #2563EB |
+| Secondary | `--secondary` | `bg-secondary` | #F1F5F9 |
+| Muted | `--muted` | `bg-muted` | #F1F5F9 |
+| Muted Foreground | `--muted-foreground` | `text-muted-foreground` | #64748B |
+| Border | `--border` | `border` | #E2E8F0 |
+| Destructive | `--destructive` | `bg-destructive` | #DC2626 |
 
 ### Risk Level Colors
 
-| Token | Value | Risk Level | SPI Range |
-|-------|-------|------------|-----------|
-| `--risk-critical` | `#DC2626` | CRITICAL | ≤ -1.5 |
-| `--risk-high` | `#E76237` | HIGH | -1.5 to -1.0 |
-| `--risk-medium` | `#F59E0B` | MEDIUM | -1.0 to -0.5 |
-| `--risk-low` | `#10B981` | LOW | > -0.5 |
+| Level | CSS Variable | Tailwind Class | Hex Value |
+|-------|--------------|----------------|-----------|
+| Critical | `--risk-critical` | `text-red-600` / `bg-red-100` | #DC2626 |
+| High | `--risk-high` | `text-orange-600` / `bg-orange-100` | #EA580C |
+| Medium | `--risk-medium` | `text-amber-600` / `bg-amber-100` | #D97706 |
+| Low | `--risk-low` | `text-emerald-600` / `bg-emerald-100` | #059669 |
 
-### Border Colors
+### Usage Examples
 
-| Token | Value | Usage |
-|-------|-------|-------|
-| `--border-default` | `#292929` | Standard borders |
+```tsx
+// Risk level styling
+<Badge className="bg-red-100 text-red-700 border-red-200">Critical</Badge>
+<Badge className="bg-orange-100 text-orange-700 border-orange-200">High</Badge>
+<Badge className="bg-amber-100 text-amber-700 border-amber-200">Medium</Badge>
+<Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">Low</Badge>
+
+// Primary actions
+<Button className="bg-primary text-primary-foreground">Action</Button>
+
+// Muted text
+<p className="text-muted-foreground">Secondary information</p>
+```
 
 ---
 
-## Typography Tokens
+## Typography
 
 ### Font Family
 
 ```css
---font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+font-family: 'Inter', system-ui, -apple-system, sans-serif;
 ```
 
-### Type Scale
+Loaded via Google Fonts in `globals.css`.
 
-| Class | Size | Weight | Line Height | Usage |
-|-------|------|--------|-------------|-------|
-| `.display-text` | clamp(48px, 8vw, 90px) | 800 | 0.95 | Hero headlines |
-| `h1` | clamp(40px, 6vw, 70px) | 800 | 1.0 | Page titles |
-| `h2`, `.section-title` | clamp(32px, 4vw, 55px) | 800 | 1.1 | Section titles |
-| `h3` | clamp(24px, 3vw, 38px) | 700 | 1.2 | Card titles |
-| `.body-large` | 20px | 500 | 1.35 | Intro text |
-| `p` | 18px | 450 | 1.45 | Body text |
-| `.metric-label` | 14px | 600 | — | Labels, captions |
-| Micro | 12px | 700 | — | Tags, badges |
+### Scale
 
----
+| Element | Tailwind Classes | Size |
+|---------|------------------|------|
+| Display | `text-5xl md:text-6xl font-extrabold` | 48-64px |
+| H1 | `text-3xl md:text-4xl font-bold` | 30-36px |
+| H2 | `text-2xl md:text-3xl font-bold` | 24-30px |
+| H3 | `text-lg md:text-xl font-semibold` | 18-20px |
+| Body | `text-base` | 16px |
+| Body Large | `text-lg` | 18px |
+| Caption | `text-sm font-medium` | 14px |
+| Micro | `text-xs font-semibold` | 12px |
 
-## Spacing Tokens
+### Usage
 
-| Token | Value | Usage |
-|-------|-------|-------|
-| `--space-xs` | 8px | Tight grouping |
-| `--space-sm` | 12px | Related elements |
-| `--space-md` | 20px | Standard padding |
-| `--space-lg` | 32px | Section separation |
-| `--space-xl` | 48px | Major sections |
-| `--space-2xl` | 72px | Page sections |
-| `--space-3xl` | 96px | Hero spacing |
+```tsx
+<h1 className="text-3xl font-bold tracking-tight">Page Title</h1>
+<p className="text-muted-foreground">Description text</p>
+<span className="text-sm text-muted-foreground">Caption</span>
+```
 
 ---
 
-## Motion Tokens
+## Spacing
 
-### Duration
+Use Tailwind's spacing scale:
 
-| Token | Value | Usage |
-|-------|-------|-------|
-| `--duration-fast` | 200ms | Micro-interactions |
-| `--duration-medium` | 600ms | State changes |
-| `--duration-slow` | 800ms | Reveals, page transitions |
-| `--duration-default` | 800ms | Default animation |
+| Token | Tailwind | Value |
+|-------|----------|-------|
+| xs | `p-1`, `m-1`, `gap-1` | 4px |
+| sm | `p-2`, `m-2`, `gap-2` | 8px |
+| md | `p-3`, `m-3`, `gap-3` | 12px |
+| lg | `p-4`, `m-4`, `gap-4` | 16px |
+| xl | `p-6`, `m-6`, `gap-6` | 24px |
+| 2xl | `p-8`, `m-8`, `gap-8` | 32px |
 
-### Easing
+### Container
 
-| Token | Value | Usage |
-|-------|-------|-------|
-| `--ease-default` | cubic-bezier(0.4, 0, 0.2, 1) | Standard easing |
-| `--ease-smooth` | cubic-bezier(0.19, 1, 0.22, 1) | Smooth out |
-
----
-
-## Shape Tokens
-
-| Property | Value | Notes |
-|----------|-------|-------|
-| Border radius | 0 | Sharp edges throughout |
-| Border width | 1px | Standard borders |
+```tsx
+<div className="container py-8">
+  {/* Centered content with responsive padding */}
+</div>
+```
 
 ---
 
-## Component Patterns
+## Border Radius
 
-### Cards
+| Token | Tailwind | Value |
+|-------|----------|-------|
+| None | `rounded-none` | 0 |
+| Small | `rounded-sm` | 2px |
+| Default | `rounded` / `rounded-md` | 6px |
+| Large | `rounded-lg` | 8px |
+| XL | `rounded-xl` | 12px |
+| Full | `rounded-full` | 9999px |
+
+shadcn/ui components use `--radius` variable (0.5rem default).
+
+---
+
+## Shadows
+
+| Token | Tailwind | Use Case |
+|-------|----------|----------|
+| None | `shadow-none` | Flat elements |
+| XS | `shadow-xs` | Subtle depth |
+| Small | `shadow-sm` | Cards at rest |
+| Medium | `shadow-md` | Elevated elements |
+| Large | `shadow-lg` | Modals, dropdowns |
+| XL | `shadow-xl` | Focus elements |
+
+### Usage
+
+```tsx
+<Card className="shadow-sm hover:shadow-md transition-shadow">
+```
+
+---
+
+## Motion
+
+### Durations
+
+| Token | Tailwind | Value | Use Case |
+|-------|----------|-------|----------|
+| Fast | `duration-150` | 150ms | Micro-interactions |
+| Default | `duration-200` | 200ms | State changes |
+| Slow | `duration-300` | 300ms | Reveals |
+| Slower | `duration-500` | 500ms | Page transitions |
+
+### Transitions
+
+```tsx
+// Standard transition
+<Card className="transition-all duration-200">
+
+// Hover effects
+<Card className="transition-all duration-200 hover:shadow-lg hover:-translate-y-1">
+```
+
+### Reduced Motion
+
+```tsx
+// Respect user preferences
+<div className="motion-safe:animate-fade-in">
+```
+
+---
+
+## Animations
+
+Defined in `globals.css`:
 
 ```css
-.card-base {
-    background-color: var(--bg-surface);
-    border: 1px solid var(--border-default);
-    padding: var(--space-lg);
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
+
+@keyframes fade-up {
+  from { 
+    opacity: 0; 
+    transform: translateY(10px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+.animate-fade-in { animation: fade-in 0.3s ease-out; }
+.animate-fade-up { animation: fade-up 0.4s ease-out; }
 ```
 
-### Buttons
+### Usage
+
+```tsx
+<div className="animate-fade-in">
+  {/* Content fades in on mount */}
+</div>
+```
+
+---
+
+## Dark Mode (Ready)
+
+Tokens support dark mode via CSS variables:
 
 ```css
-.button-primary {
-    background-color: var(--action-primary);
-    color: var(--text-inverse);
-    border: none;
-    padding: 16px 24px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-.button-secondary {
-    background-color: var(--action-secondary);
-    color: var(--text-inverse);
-    /* Same padding/font */
+.dark {
+  --background: #0A0F1A;
+  --foreground: #F8FAFC;
+  --card: #141B2D;
+  /* ... */
 }
 ```
 
-### Sections
+Toggle with class on `<html>`:
 
-```css
-.section {
-    padding: var(--space-xl) 0;
-    margin-bottom: var(--space-xl);
-}
-
-.dark-section {
-    background-color: var(--bg-dark);
-    color: var(--text-inverse);
-    padding: var(--space-3xl) var(--space-xl);
-}
+```tsx
+<html className="dark">
 ```
 
 ---
 
-## Responsive Breakpoints
+## Usage Guidelines
 
-| Name | Width | Behavior |
-|------|-------|----------|
-| Desktop | > 1024px | Full layout |
-| Tablet | 768-1024px | Adjusted spacing |
-| Mobile | < 768px | Single column |
+### DO
 
----
+- Use Tailwind utility classes
+- Use CSS variables for custom values
+- Use `cn()` for conditional classes
+- Follow the spacing scale
 
-## Accessibility Requirements
+### DON'T
 
-| Requirement | Standard |
-|-------------|----------|
-| Text contrast | 4.5:1 minimum |
-| Large text contrast | 3:1 minimum |
-| Focus indicator | 2px solid accent |
-| Touch target | 44x44px minimum |
+- Use inline styles
+- Use arbitrary Tailwind values (`w-[123px]`) without justification
+- Hardcode colors
+- Create one-off custom classes
 
 ---
 
-## Token Usage Rules
-
-1. **Always use tokens** — Never hardcode values
-2. **Semantic over literal** — Use `--risk-high` not `#E76237`
-3. **Add tokens through governance** — New tokens require Design Council approval
-4. **Document new tokens** — Update this file when adding
-
----
-
-*Tokens are the vocabulary of our visual language.*
+*Design tokens ensure visual consistency across the entire frontend.*

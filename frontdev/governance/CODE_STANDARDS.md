@@ -12,36 +12,55 @@ This document defines the code quality standards for all frontend work. These st
 
 ## Language & Framework Standards
 
-### Python (Streamlit)
+### TypeScript
 
 | Standard | Requirement |
 |----------|-------------|
-| Python version | 3.10+ |
-| Type hints | Required for function signatures |
-| Docstrings | Required for modules, classes, and public functions |
-| Line length | 88 characters (Black default) |
-| Imports | Sorted, grouped (stdlib, third-party, local) |
+| TypeScript version | 5.0+ |
+| Strict mode | Enabled (`"strict": true`) |
+| No `any` | Avoid; use `unknown` or proper types |
+| Explicit return types | Required for exported functions |
+| Imports | Use path aliases (`@/`) |
+
+### React/Next.js
+
+| Standard | Requirement |
+|----------|-------------|
+| Next.js version | 16+ with App Router |
+| Components | Functional components only |
+| Server vs Client | Use `'use client'` directive only when needed |
+| Hooks | Follow Rules of Hooks |
 
 ### Code Style
 
-```python
-# Good: Clear, typed, documented
-def render_risk_card(risk_data: dict, show_trend: bool = True) -> None:
-    """
-    Render the primary risk card component.
-    
-    Args:
-        risk_data: Risk assessment from API containing spi_6m, risk_level, etc.
-        show_trend: Whether to display trend indicator. Defaults to True.
-    
-    Returns:
-        None. Renders directly to Streamlit.
-    """
-    ...
+```typescript
+// Good: Clear, typed, documented
+interface RiskCardProps {
+  risk: RiskResponse;
+  zoneName: string;
+}
 
-# Bad: Unclear, untyped, undocumented
-def render_card(data, flag=True):
-    ...
+/**
+ * Displays the primary risk assessment card.
+ * Shows SPI, risk level, trend, and days to critical.
+ */
+export function RiskCard({ risk, zoneName }: RiskCardProps) {
+  const isUrgent = risk.days_to_critical < 30;
+  
+  return (
+    <Card className={cn(
+      'relative overflow-hidden',
+      isUrgent && 'border-red-200'
+    )}>
+      {/* ... */}
+    </Card>
+  );
+}
+
+// Bad: Unclear, untyped, undocumented
+export function Card({ data, flag = true }: any) {
+  // ...
+}
 ```
 
 ---
@@ -50,76 +69,87 @@ def render_card(data, flag=True):
 
 ### Page Structure
 
-```python
-"""
-{Page Name}
-{Brief description of the page's decision-support purpose}
-"""
+```typescript
+// frontend/src/app/{route}/page.tsx
 
-import streamlit as st
-from pathlib import Path
-import sys
+'use client'; // Only if client-side interactivity needed
 
-# Path setup for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { api, type RiskResponse } from '@/lib/api';
 
-# Local imports
-from components.header import render_header
-from utils.api_client import get_api_client
-
-# Page configuration
-st.set_page_config(
-    page_title="{Page Title} | Water Risk Platform",
-    page_icon="{emoji}",
-    layout="wide",
-)
-
-# CSS loading
-css_file = Path(__file__).parent.parent / "assets" / "styles.css"
-if css_file.exists():
-    with open(css_file) as f:
-        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-
-# Session state initialization
-if "key" not in st.session_state:
-    st.session_state.key = default_value
-
-def main():
-    """Main page logic."""
-    ...
-
-if __name__ == "__main__":
-    main()
+export default function RiskPage() {
+  const [risk, setRisk] = useState<RiskResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const data = await api.getCurrentRisk('cdmx');
+        setRisk(data);
+      } catch (error) {
+        console.error('Failed to fetch risk:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+  
+  if (loading) return <LoadingSkeleton />;
+  if (!risk) return <ErrorState />;
+  
+  return (
+    <div className="container py-8">
+      {/* Page content */}
+    </div>
+  );
+}
 ```
 
 ### Component Structure
 
-```python
-"""
-{Component Name}
-{Brief description of the component's role in decision-support}
-"""
+```typescript
+// frontend/src/components/risk-badge.tsx
 
-import streamlit as st
-from typing import Optional, Dict, Any
+'use client';
 
-def render_{component_name}(
-    data: Dict[str, Any],
-    variant: str = "default",
-    **kwargs
-) -> None:
-    """
-    Render {component description}.
-    
-    Args:
-        data: {description}
-        variant: Visual variant. Options: "default", "compact", "expanded"
-        **kwargs: Additional customization options
-    
-    Returns:
-        None. Renders directly to Streamlit.
-    """
-    ...
+import { Badge } from '@/components/ui/badge';
+import type { RiskLevel } from '@/lib/api/types';
+import { cn } from '@/lib/utils';
+
+interface RiskBadgeProps {
+  level: RiskLevel;
+  size?: 'sm' | 'md' | 'lg';
+  pulse?: boolean;
+}
+
+const riskConfig: Record<RiskLevel, { label: string; className: string }> = {
+  CRITICAL: {
+    label: 'Critical',
+    className: 'bg-red-100 text-red-700 border-red-200',
+  },
+  // ... other levels
+};
+
+/**
+ * Displays a risk level badge with appropriate styling.
+ */
+export function RiskBadge({ level, size = 'md', pulse = false }: RiskBadgeProps) {
+  const config = riskConfig[level];
+  
+  return (
+    <Badge
+      variant="outline"
+      className={cn(
+        config.className,
+        pulse && level === 'CRITICAL' && 'animate-pulse'
+      )}
+    >
+      {config.label}
+    </Badge>
+  );
+}
 ```
 
 ---
@@ -130,71 +160,80 @@ def render_{component_name}(
 
 | Type | Convention | Example |
 |------|------------|---------|
-| Pages | `{n}_{snake_case}.py` | `1_risk_overview.py` |
-| Components | `{snake_case}.py` | `risk_display.py` |
-| Utilities | `{snake_case}.py` | `api_client.py` |
+| Pages | `{route}/page.tsx` | `risk/page.tsx` |
+| Components | `{kebab-case}.tsx` | `risk-badge.tsx` |
+| UI Components | `{kebab-case}.tsx` in `ui/` | `ui/button.tsx` |
+| Utilities | `{kebab-case}.ts` | `api-client.ts` |
+| Types | `types.ts` | `lib/api/types.ts` |
 
-### Functions
-
-| Type | Convention | Example |
-|------|------------|---------|
-| Render functions | `render_{component}()` | `render_risk_card()` |
-| Data fetching | `get_{resource}()` | `get_current_risk()` |
-| Data processing | `process_{action}()` | `process_simulation_result()` |
-| Validation | `validate_{target}()` | `validate_zone_selection()` |
-| Event handlers | `handle_{event}()` | `handle_action_selection()` |
-
-### Variables
+### Components & Functions
 
 | Type | Convention | Example |
 |------|------------|---------|
-| Session state keys | `snake_case` | `selected_zone` |
-| Constants | `UPPER_SNAKE_CASE` | `MAX_PROJECTION_DAYS` |
-| Component props | `snake_case` | `show_trend` |
+| React Components | PascalCase | `RiskCard`, `ActionCard` |
+| Hooks | camelCase with `use` prefix | `useRiskData`, `useActions` |
+| Utilities | camelCase | `formatDate`, `calculateDays` |
+| Event handlers | camelCase with `handle` prefix | `handleSelect`, `handleSubmit` |
+| API functions | camelCase with verb prefix | `getCurrentRisk`, `simulateScenario` |
 
-### CSS Classes
+### Variables & Types
 
 | Type | Convention | Example |
 |------|------------|---------|
-| Components | `{component-name}` | `risk-card` |
-| Modifiers | `{component}.{modifier}` | `risk-card.critical` |
-| States | `{component}.{state}` | `action-card.selected` |
-| Utilities | `{property}-{value}` | `text-muted` |
+| Interfaces | PascalCase | `RiskResponse`, `ActionCard` |
+| Type aliases | PascalCase | `RiskLevel`, `Trend` |
+| Constants | UPPER_SNAKE_CASE | `MAX_PROJECTION_DAYS` |
+| Variables | camelCase | `selectedZone`, `isLoading` |
+
+### CSS Classes (Tailwind)
+
+Use Tailwind utilities directly. For custom classes:
+
+| Type | Convention | Example |
+|------|------------|---------|
+| Components | kebab-case | `risk-card` |
+| Modifiers | Tailwind variants | `hover:bg-primary` |
+| States | data attributes | `data-[state=active]:bg-primary` |
 
 ---
 
-## Session State Management
+## State Management
 
-### Initialization Pattern
+### React State
 
-```python
-# Always check before setting
-if "key" not in st.session_state:
-    st.session_state.key = default_value
+```typescript
+// Local component state
+const [selectedZone, setSelectedZone] = useState<string>('cdmx');
+const [risk, setRisk] = useState<RiskResponse | null>(null);
+const [loading, setLoading] = useState(true);
+const [error, setError] = useState<string | null>(null);
 ```
 
-### Documented Keys
+### Persistence (localStorage)
 
-All session state keys must be documented:
+```typescript
+// Save to localStorage for cross-page state
+const saveSelectedActions = (actions: string[]) => {
+  localStorage.setItem('selectedActions', JSON.stringify(actions));
+};
 
-```python
-# Session State Keys:
-# - selected_zone: str - Currently selected zone ID ("cdmx" | "monterrey")
-# - selected_profile: str - User profile ("government" | "industry")
-# - current_risk: dict | None - Latest risk data from API
-# - recommended_actions: list | None - Actions from API
-# - selected_actions: list - Action codes selected for simulation
-# - simulation_result: dict | None - Latest simulation result
+const loadSelectedActions = (): string[] => {
+  const stored = localStorage.getItem('selectedActions');
+  return stored ? JSON.parse(stored) : [];
+};
 ```
 
-### State Reset Pattern
+### URL State (for shareable state)
 
-```python
-def reset_dependent_state():
-    """Reset state that depends on zone/profile selection."""
-    st.session_state.current_risk = None
-    st.session_state.recommended_actions = None
-    st.session_state.simulation_result = None
+```typescript
+// Use Next.js searchParams for shareable state
+import { useSearchParams } from 'next/navigation';
+
+export default function RiskPage() {
+  const searchParams = useSearchParams();
+  const zone = searchParams.get('zone') || 'cdmx';
+  // ...
+}
 ```
 
 ---
@@ -203,78 +242,106 @@ def reset_dependent_state():
 
 ### Client Usage
 
-```python
-from utils.api_client import get_api_client
+```typescript
+import { api, type RiskResponse } from '@/lib/api';
 
-api = get_api_client()
+// In a component
+const [risk, setRisk] = useState<RiskResponse | null>(null);
 
-# Always handle potential errors
-risk_data = api.get_current_risk(zone_id)
-if not risk_data or "error" in risk_data:
-    st.error("Unable to fetch risk data.")
-    # Provide fallback or demo mode option
-    return
+useEffect(() => {
+  async function fetchRisk() {
+    try {
+      const data = await api.getCurrentRisk(selectedZone);
+      setRisk(data);
+    } catch (error) {
+      // Fallback to demo data
+      setRisk(api.getDemoRisk(selectedZone));
+      setIsDemo(true);
+    }
+  }
+  fetchRisk();
+}, [selectedZone]);
 ```
 
 ### Error Handling
 
-```python
-# Good: Graceful degradation with user feedback
-try:
-    result = api.get_recommended_actions(zone_id, profile)
-    if result and "actions" in result:
-        display_actions(result["actions"])
-    else:
-        st.warning("No actions available. Showing defaults.")
-        display_demo_actions()
-except Exception as e:
-    st.error(f"API error: {str(e)}")
-    log_error(e)  # If logging available
-```
+```typescript
+// Good: Graceful degradation with user feedback
+try {
+  const result = await api.getRecommendedActions({ zone_id, profile });
+  setActions(result.actions);
+} catch (error) {
+  console.error('API error:', error);
+  // Show demo data with clear indication
+  setActions(DEMO_ACTIONS);
+  setIsDemo(true);
+}
 
-### Demo Mode
-
-```python
-# When API unavailable, provide clear demo mode
-if st.button("Show Demo Data"):
-    st.info("📊 Displaying demo data. Connect to API for live results.")
-    demo_data = get_demo_data()
-    display_data(demo_data)
+// In JSX:
+{isDemo && (
+  <Alert>
+    <Info className="h-4 w-4" />
+    <AlertTitle>Demo Mode</AlertTitle>
+    <AlertDescription>
+      Showing sample data. Connect to API for live results.
+    </AlertDescription>
+  </Alert>
+)}
 ```
 
 ---
 
-## HTML/CSS in Streamlit
+## Component Patterns
 
-### Markdown with HTML
+### shadcn/ui Usage
 
-```python
-# Good: Semantic, accessible, using design tokens
-st.markdown("""
-<div class="risk-card high">
-    <div class="metric-label">Risk Level</div>
-    <div class="metric-value high">HIGH</div>
-</div>
-""", unsafe_allow_html=True)
+```typescript
+// Always import from @/components/ui/
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
-# Bad: Inline styles, no semantic structure
-st.markdown("""
-<div style="background: red; padding: 10px;">
-    <span style="font-size: 24px;">HIGH</span>
-</div>
-""", unsafe_allow_html=True)
+// Use cn() for conditional classes
+import { cn } from '@/lib/utils';
+
+<Card className={cn(
+  'transition-all duration-200',
+  isSelected && 'ring-2 ring-primary'
+)}>
 ```
 
-### CSS Class Usage
+### Props Interface Pattern
 
-Always use classes from `styles.css`:
+```typescript
+interface ActionCardProps {
+  action: RecommendedAction;
+  selected?: boolean;
+  onToggle?: (code: string) => void;
+}
 
-```python
-# Good: Using design system classes
-st.markdown('<div class="section reveal fade-up">', unsafe_allow_html=True)
+export function ActionCard({ 
+  action, 
+  selected = false, 
+  onToggle 
+}: ActionCardProps) {
+  // ...
+}
+```
 
-# Bad: Creating one-off styles
-st.markdown('<div style="padding: 48px 0; margin-bottom: 48px;">', unsafe_allow_html=True)
+### Conditional Rendering
+
+```typescript
+// Good: Clear conditional logic
+{loading && <Skeleton className="h-8 w-24" />}
+{error && <ErrorAlert message={error} />}
+{risk && <RiskDisplay risk={risk} />}
+
+// Good: Early returns for states
+if (loading) return <LoadingSkeleton />;
+if (error) return <ErrorState error={error} />;
+if (!data) return <EmptyState />;
+
+return <MainContent data={data} />;
 ```
 
 ---
@@ -283,31 +350,36 @@ st.markdown('<div style="padding: 48px 0; margin-bottom: 48px;">', unsafe_allow_
 
 ### When to Comment
 
-```python
-# Comment on WHY, not WHAT
-# Bad: Increment counter
-counter += 1
+```typescript
+// Comment on WHY, not WHAT
+// Bad: Increment counter
+counter += 1;
 
-# Good: Track iterations for rate limiting (API allows max 10 calls/minute)
-counter += 1
+// Good: Track API calls for rate limiting (max 10/minute)
+counter += 1;
 ```
 
-### Decision Documentation
+### JSDoc for Exported Functions
 
-```python
-# DECISION: Using gamma distribution for SPI calculation
-# Rationale: Industry standard per WMO guidelines
-# See: ARCHITECTURE_DECISIONS.md #ADR-003
-def calculate_spi(...):
-    ...
+```typescript
+/**
+ * Fetches the current risk assessment for a zone.
+ * Falls back to demo data if API is unavailable.
+ * 
+ * @param zoneId - Zone identifier (e.g., 'cdmx', 'monterrey')
+ * @returns Risk response with SPI, level, trend, and days to critical
+ */
+export async function getCurrentRisk(zoneId: string): Promise<RiskResponse> {
+  // ...
+}
 ```
 
 ### TODO Comments
 
-```python
-# TODO(session-id): Brief description of needed work
-# Example:
-# TODO(2026-01-31-urgency): Add animation for days-to-critical countdown
+```typescript
+// TODO(session-id): Brief description of needed work
+// Example:
+// TODO(2026-01-31-urgency): Add animation for days-to-critical countdown
 ```
 
 ---
@@ -316,64 +388,80 @@ def calculate_spi(...):
 
 ### Component Testability
 
-```python
-# Good: Logic separated from rendering
-def calculate_urgency_level(days_to_critical: int) -> str:
-    """Determine urgency level from days remaining."""
-    if days_to_critical < 15:
-        return "critical"
-    elif days_to_critical < 30:
-        return "high"
-    elif days_to_critical < 45:
-        return "medium"
-    return "low"
+```typescript
+// Good: Logic separated from rendering
+function calculateUrgencyLevel(daysToCritical: number): string {
+  if (daysToCritical < 15) return 'critical';
+  if (daysToCritical < 30) return 'high';
+  if (daysToCritical < 45) return 'medium';
+  return 'low';
+}
 
-def render_urgency_indicator(days: int) -> None:
-    """Render urgency indicator."""
-    level = calculate_urgency_level(days)
-    st.markdown(f'<div class="urgency-{level}">...</div>', unsafe_allow_html=True)
+// This pure function can be easily unit tested
 ```
 
 ### Data Validation
 
-```python
-def validate_risk_data(data: dict) -> bool:
-    """Validate risk data has required fields."""
-    required = ["zone_id", "spi_6m", "risk_level", "trend", "days_to_critical"]
-    return all(key in data for key in required)
+```typescript
+function validateRiskData(data: unknown): data is RiskResponse {
+  if (!data || typeof data !== 'object') return false;
+  const d = data as Record<string, unknown>;
+  return (
+    typeof d.zone_id === 'string' &&
+    typeof d.spi_6m === 'number' &&
+    ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(d.risk_level as string)
+  );
+}
 ```
 
 ---
 
 ## Performance Guidelines
 
-### Avoid Redundant Computation
+### Avoid Unnecessary Re-renders
 
-```python
-# Bad: Recomputing on every interaction
-@st.cache_data(ttl=300)  # Cache for 5 minutes
-def fetch_risk_history(zone_id: str, days: int) -> dict:
-    """Fetch and cache risk history."""
-    return api.get_risk_history(zone_id, days)
-```
+```typescript
+// Use useMemo for expensive computations
+const sortedActions = useMemo(() => 
+  actions.sort((a, b) => b.priority_score - a.priority_score),
+  [actions]
+);
 
-### Minimize Re-renders
-
-```python
-# Use st.empty() for dynamic updates
-placeholder = st.empty()
-with placeholder.container():
-    render_dynamic_content()
+// Use useCallback for callback props
+const handleToggle = useCallback((code: string) => {
+  setSelected(prev => 
+    prev.has(code) 
+      ? new Set([...prev].filter(c => c !== code))
+      : new Set([...prev, code])
+  );
+}, []);
 ```
 
 ### Lazy Loading
 
-```python
-# Load heavy content only when needed
-if st.button("Show detailed analysis"):
-    with st.spinner("Loading..."):
-        detailed_data = fetch_detailed_data()
-        render_detailed_analysis(detailed_data)
+```typescript
+// Dynamic imports for heavy components
+import dynamic from 'next/dynamic';
+
+const SimulationChart = dynamic(
+  () => import('@/components/simulation-chart'),
+  { loading: () => <Skeleton className="h-[400px]" /> }
+);
+```
+
+### Image Optimization
+
+```typescript
+// Use Next.js Image component
+import Image from 'next/image';
+
+<Image 
+  src="/logo.png" 
+  alt="Water Risk Platform" 
+  width={120} 
+  height={40}
+  priority // For above-fold images
+/>
 ```
 
 ---
@@ -382,15 +470,17 @@ if st.button("Show detailed analysis"):
 
 Before Phase 3 Fidelity Review, verify:
 
-- [ ] Type hints on all function signatures
-- [ ] Docstrings on modules and public functions
-- [ ] Session state keys documented
+- [ ] TypeScript strict mode passes
+- [ ] No `any` types without justification
+- [ ] All exported functions have JSDoc
+- [ ] Props interfaces defined for all components
 - [ ] Error handling for all API calls
-- [ ] CSS classes from design system (no inline styles)
-- [ ] Accessibility considerations (alt text, ARIA, focus)
+- [ ] Loading and empty states handled
+- [ ] Tailwind classes used (no inline styles)
+- [ ] Accessibility: alt text, ARIA labels, focus states
 - [ ] No hardcoded values (use constants or config)
 - [ ] Comments explain WHY, not WHAT
-- [ ] Performance considerations (caching, lazy loading)
+- [ ] Performance: useMemo/useCallback where appropriate
 
 ---
 

@@ -1,0 +1,404 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  
+  /* Base */
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  
+  /* Charts */
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  
+  /* Risk Level Colors */
+  --color-risk-critical: #DC2626;
+  --color-risk-critical-bg: rgba(254, 242, 242, 0.8);
+  --color-risk-high: #EA580C;
+  --color-risk-high-bg: rgba(255, 247, 237, 0.8);
+  --color-risk-medium: #D97706;
+  --color-risk-medium-bg: rgba(255, 251, 235, 0.8);
+  --color-risk-low: #059669;
+  --color-risk-low-bg: rgba(236, 253, 245, 0.8);
+  
+  /* Radius */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+}
+
+/* ============================================
+   DESIGN TOKENS - Light Mode Only (Stripe-inspired)
+   ============================================ */
+:root {
+  /* Radius */
+  --radius: 0.75rem;
+  
+  /* Colors - Stripe-inspired palette */
+  --background: #FFFFFF;
+  --foreground: #0A2540;
+  --card: #FFFFFF;
+  --card-foreground: #0A2540;
+  --popover: #FFFFFF;
+  --popover-foreground: #0A2540;
+  
+  /* Primary - True blue (professional, not purple) */
+  --primary: #2563EB;
+  --primary-foreground: #FFFFFF;
+  
+  /* Secondary */
+  --secondary: #F6F9FC;
+  --secondary-foreground: #0A2540;
+  
+  /* Muted */
+  --muted: #F6F9FC;
+  --muted-foreground: #425466;
+  
+  /* Accent */
+  --accent: #F6F9FC;
+  --accent-foreground: #0A2540;
+  
+  /* Destructive */
+  --destructive: #DF1B41;
+  
+  /* Borders */
+  --border: #E6E9ED;
+  --input: #E6E9ED;
+  --ring: #2563EB;
+  
+  /* Charts - Risk colors */
+  --chart-1: #DF1B41;  /* Critical - Stripe red */
+  --chart-2: #ED5F00;  /* High - Orange */
+  --chart-3: #C4841D;  /* Medium - Amber */
+  --chart-4: #0E6245;  /* Low - Green */
+  --chart-5: #2563EB;  /* Primary */
+  
+  /* Shadows - Refined depth system */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+  --shadow-glow: 0 0 20px rgba(37, 99, 235, 0.2);
+  --shadow-glow-lg: 0 0 40px rgba(37, 99, 235, 0.25);
+  
+  /* Glassmorphism (for nav/floating elements only) */
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.5);
+  --glass-blur: 12px;
+}
+
+/* ============================================
+   BASE STYLES
+   ============================================ */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    box-sizing: border-box;
+  }
+  
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    overflow-x: hidden;
+  }
+  
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  /* Improved heading styles */
+  h1, h2, h3, h4, h5, h6 {
+    @apply tracking-tight;
+    text-wrap: balance;
+  }
+  
+  h1 { @apply text-4xl md:text-5xl font-extrabold; }
+  h2 { @apply text-3xl md:text-4xl font-bold; }
+  h3 { @apply text-2xl md:text-3xl font-bold; }
+  h4 { @apply text-xl md:text-2xl font-semibold; }
+}
+
+/* Container - centered with max-width (outside @layer for higher specificity) */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .container {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container {
+    padding-left: 3rem;
+    padding-right: 3rem;
+  }
+}
+
+/* ============================================
+   RISK LEVEL UTILITIES
+   ============================================ */
+.risk-critical {
+  --risk-color: #DF1B41;
+  --risk-bg: rgba(223, 27, 65, 0.08);
+}
+.risk-high {
+  --risk-color: #ED5F00;
+  --risk-bg: rgba(237, 95, 0, 0.08);
+}
+.risk-medium {
+  --risk-color: #C4841D;
+  --risk-bg: rgba(196, 132, 29, 0.08);
+}
+.risk-low {
+  --risk-color: #0E6245;
+  --risk-bg: rgba(14, 98, 69, 0.08);
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fade-up {
+  from { 
+    opacity: 0; 
+    transform: translateY(16px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+@keyframes fade-down {
+  from { 
+    opacity: 0; 
+    transform: translateY(-16px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+@keyframes scale-in {
+  from { 
+    opacity: 0; 
+    transform: scale(0.96); 
+  }
+  to { 
+    opacity: 1; 
+    transform: scale(1); 
+  }
+}
+
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { 
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4);
+  }
+  50% { 
+    box-shadow: 0 0 0 8px rgba(37, 99, 235, 0);
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out;
+}
+
+.animate-fade-up {
+  animation: fade-up 0.5s ease-out;
+}
+
+.animate-fade-down {
+  animation: fade-down 0.5s ease-out;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.4s ease-out;
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--muted) 0%,
+    var(--background) 50%,
+    var(--muted) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient-shift 8s ease infinite;
+}
+
+/* ============================================
+   GLASSMORPHISM UTILITIES
+   ============================================ */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+}
+
+.glass-subtle {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* ============================================
+   SHADOW UTILITIES
+   ============================================ */
+.shadow-glow {
+  box-shadow: var(--shadow-glow);
+}
+
+.shadow-glow-lg {
+  box-shadow: var(--shadow-glow-lg);
+}
+
+.shadow-refined {
+  box-shadow: var(--shadow-md);
+}
+
+.shadow-elevated {
+  box-shadow: var(--shadow-lg);
+}
+
+/* Hover shadow transition */
+.hover-shadow-lift {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hover-shadow-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* ============================================
+   GRADIENT UTILITIES
+   ============================================ */
+.gradient-primary {
+  background: linear-gradient(135deg, #2563EB 0%, #3B82F6 100%);
+}
+
+.gradient-subtle {
+  background: linear-gradient(180deg, var(--background) 0%, var(--secondary) 100%);
+}
+
+.gradient-radial {
+  background: radial-gradient(ellipse at center, var(--primary) 0%, transparent 70%);
+}
+
+/* Text gradient */
+.text-gradient {
+  background: linear-gradient(135deg, #2563EB 0%, #3B82F6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ============================================
+   FOCUS STATES
+   ============================================ */
+.focus-ring {
+  @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2;
+}
+
+/* ============================================
+   REDUCED MOTION
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

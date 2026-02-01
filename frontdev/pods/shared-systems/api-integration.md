@@ -1,257 +1,290 @@
-# API Integration Guide
+# API Integration Patterns
 
-**Shared Systems Pod — Frontend Decision Intelligence Organization**
-
----
-
-## Purpose
-
-This document defines patterns for API integration in the frontend.
+**Shared Systems Pod — Frontend Decision Intelligence Engineering Organization**
 
 ---
 
-## API Client
+## Overview
 
-**Location**: `dashboard/utils/api_client.py`
+This document defines patterns for integrating with the FastAPI backend from the Next.js frontend.
 
-### Getting the Client
+---
 
-```python
-from utils.api_client import get_api_client
+## API Client Architecture
 
-api = get_api_client()
+```
+frontend/src/lib/api/
+├── client.ts      # API functions (fetch wrappers)
+├── types.ts       # TypeScript interfaces matching backend schemas
+└── index.ts       # Re-exports for clean imports
 ```
 
-### Available Methods
+### Client Structure
 
-| Method | Endpoint | Returns |
-|--------|----------|---------|
-| `get_current_risk(zone_id)` | GET `/risk/current` | Risk assessment dict |
-| `get_risk_history(zone_id, days)` | GET `/risk/history` | Historical data dict |
-| `get_zones()` | GET `/zones` | List of zones |
-| `get_recommended_actions(zone_id, profile)` | POST `/actions/recommended` | Actions dict |
-| `run_simulation(zone_id, profile, action_codes, projection_days)` | POST `/scenarios/simulate` | Simulation dict |
+```typescript
+// frontend/src/lib/api/client.ts
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options?.headers,
+    },
+  });
+  
+  if (!response.ok) {
+    throw new Error(`API Error: ${response.status}`);
+  }
+  
+  return response.json();
+}
+
+// Exported functions
+export async function getCurrentRisk(zoneId: string): Promise<RiskResponse> {
+  return fetchApi(`/risk/current?zone_id=${zoneId}`);
+}
+```
 
 ---
 
-## Error Handling Pattern
+## Usage Patterns
+
+### Basic Data Fetching
+
+```typescript
+'use client';
+
+import { useEffect, useState } from 'react';
+import { api, type RiskResponse } from '@/lib/api';
+
+export function RiskDisplay({ zoneId }: { zoneId: string }) {
+  const [risk, setRisk] = useState<RiskResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchRisk() {
+      try {
+        setLoading(true);
+        const data = await api.getCurrentRisk(zoneId);
+        setRisk(data);
+        setError(null);
+      } catch (err) {
+        setError('Failed to fetch risk data');
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    fetchRisk();
+  }, [zoneId]);
+
+  if (loading) return <Skeleton />;
+  if (error) return <ErrorAlert message={error} />;
+  if (!risk) return null;
+  
+  return <RiskCard risk={risk} />;
+}
+```
+
+### With Demo Mode Fallback
+
+```typescript
+useEffect(() => {
+  async function fetchData() {
+    setLoading(true);
+    
+    try {
+      const data = await api.getRecommendedActions({
+        zone_id: selectedZone,
+        profile: selectedProfile,
+      });
+      setActions(data.actions);
+      setIsDemo(false);
+    } catch (err) {
+      // Fallback to demo data
+      console.warn('API unavailable, using demo data');
+      setActions(DEMO_ACTIONS);
+      setIsDemo(true);
+    } finally {
+      setLoading(false);
+    }
+  }
+  
+  fetchData();
+}, [selectedZone, selectedProfile]);
+```
+
+### POST Requests
+
+```typescript
+async function runSimulation() {
+  setLoading(true);
+  
+  try {
+    const result = await api.simulateScenario({
+      zone_id: selectedZone,
+      action_codes: Array.from(selectedActions),
+      projection_days: 90,
+    });
+    setSimulation(result);
+  } catch (err) {
+    setError('Simulation failed');
+  } finally {
+    setLoading(false);
+  }
+}
+```
+
+---
+
+## Type Safety
+
+### Matching Backend Schemas
+
+Types in `types.ts` must match FastAPI Pydantic models:
+
+```typescript
+// Must match src/api/schemas/risk.py
+export interface RiskResponse {
+  zone_id: string;
+  spi_6m: number;
+  risk_level: RiskLevel;
+  trend: Trend;
+  days_to_critical: number;
+  last_updated: string;
+}
+
+export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+export type Trend = 'IMPROVING' | 'STABLE' | 'WORSENING';
+```
+
+### Import Pattern
+
+```typescript
+// Clean imports from single entry point
+import { 
+  api,
+  type RiskResponse,
+  type RecommendedAction,
+  type SimulationResponse,
+} from '@/lib/api';
+```
+
+---
+
+## Error Handling
 
 ### Standard Pattern
 
-```python
-api = get_api_client()
-
-with st.spinner("Loading..."):
-    data = api.get_current_risk(zone_id)
-
-if not data or "error" in data:
-    st.error("Unable to fetch data. Please ensure the API is running.")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("Retry"):
-            st.rerun()
-    with col2:
-        if st.button("Show Demo Data"):
-            data = get_demo_data()
-            st.info("📊 Showing demo data")
-    
-    if not data:
-        return
+```typescript
+try {
+  const data = await api.getCurrentRisk(zoneId);
+  // Handle success
+} catch (error) {
+  if (error instanceof Error) {
+    // Known error type
+    setError(error.message);
+  } else {
+    // Unknown error
+    setError('An unexpected error occurred');
+  }
+}
 ```
 
-### Error Types
+### User Feedback
 
-| Error | Handling |
-|-------|----------|
-| Connection error | Show retry option + demo mode |
-| Timeout | Show retry option |
-| 404 | Check zone/endpoint validity |
-| 500 | Show error message, offer retry |
+Always provide clear feedback:
+
+```tsx
+{error && (
+  <Alert variant="destructive">
+    <AlertCircle className="h-4 w-4" />
+    <AlertTitle>Error</AlertTitle>
+    <AlertDescription>{error}</AlertDescription>
+  </Alert>
+)}
+```
 
 ---
 
 ## Demo Mode
 
-### When Demo Mode Activates
+### When to Use
 
-- API URL not configured
-- API not responding
-- User explicitly requests demo
+- API server unavailable
+- Offline development
+- Demonstrations without live data
 
-### Demo Data Location
+### Implementation
 
-Keep demo data centralized:
+```typescript
+// In client.ts
+export const DEMO_RISK_CDMX: RiskResponse = {
+  zone_id: 'cdmx',
+  spi_6m: -1.72,
+  risk_level: 'HIGH',
+  trend: 'WORSENING',
+  days_to_critical: 24,
+  last_updated: new Date().toISOString(),
+};
 
-```python
-# utils/demo_data.py (proposed)
-
-DEMO_RISK = {
-    "cdmx": {
-        "zone_id": "cdmx",
-        "spi_6m": -1.72,
-        "risk_level": "HIGH",
-        "trend": "WORSENING",
-        "days_to_critical": 24,
-        "calculated_at": "2024-01-15T10:30:00Z"
-    },
-    "monterrey": {...}
-}
-
-DEMO_ACTIONS = [...]
-DEMO_SIMULATION = {...}
-```
-
-### Demo Mode Indicator
-
-Always show when using demo data:
-
-```python
-st.info("📊 Displaying demo data. Connect to API for live results.")
-```
-
----
-
-## Request Patterns
-
-### GET Request
-
-```python
-def get_current_risk(self, zone_id: str) -> dict:
-    """Fetch current risk assessment."""
-    try:
-        response = self.client.get(
-            f"{self.base_url}/risk/current",
-            params={"zone_id": zone_id},
-            timeout=10.0
-        )
-        response.raise_for_status()
-        return response.json()
-    except Exception as e:
-        return {"error": str(e)}
-```
-
-### POST Request
-
-```python
-def get_recommended_actions(self, zone_id: str, profile: str) -> dict:
-    """Fetch recommended actions."""
-    try:
-        response = self.client.post(
-            f"{self.base_url}/actions/recommended",
-            json={"zone_id": zone_id, "profile": profile},
-            timeout=15.0
-        )
-        response.raise_for_status()
-        return response.json()
-    except Exception as e:
-        return {"error": str(e)}
-```
-
----
-
-## Caching
-
-### When to Cache
-
-- Historical data (changes infrequently)
-- Zone list (static)
-- Action catalog (static)
-
-### How to Cache
-
-```python
-@st.cache_data(ttl=300)  # 5 minute cache
-def fetch_risk_history(zone_id: str, days: int) -> dict:
-    api = get_api_client()
-    return api.get_risk_history(zone_id, days)
-```
-
-### When NOT to Cache
-
-- Current risk (needs to be live)
-- Simulation results (per-request)
-- Recommended actions (depend on current state)
-
----
-
-## Response Contracts
-
-### Risk Current
-
-```json
-{
-    "zone_id": "cdmx",
-    "spi_6m": -1.72,
-    "risk_level": "HIGH",
-    "trend": "WORSENING",
-    "days_to_critical": 24,
-    "calculated_at": "2024-01-15T10:30:00Z"
+export function getDemoRisk(zoneId: string): RiskResponse {
+  return zoneId === 'cdmx' ? DEMO_RISK_CDMX : DEMO_RISK_MONTERREY;
 }
 ```
 
-### Recommended Actions
+### Visual Indication
 
-```json
-{
-    "zone_id": "cdmx",
-    "profile": "government",
-    "actions": [
-        {
-            "base_action_id": "H4_LAWN_BAN",
-            "code": "H4_LAWN_BAN",
-            "title": "Lawn/Garden Irrigation Restriction",
-            "parameters": {
-                "reduction_percentage": 15.0,
-                "duration_days": 30,
-                "priority_level": "HIGH"
-            },
-            "justification": "...",
-            "expected_effect": "+19 days to critical"
-        }
-    ]
-}
-```
-
-### Simulation
-
-```json
-{
-    "zone_id": "cdmx",
-    "profile": "government",
-    "current_spi": -1.72,
-    "no_action_scenario": {
-        "projected_spi": -2.12,
-        "projected_risk_level": "CRITICAL",
-        "days_to_critical": 24,
-        "description": "..."
-    },
-    "with_action_scenario": {
-        "projected_spi": -1.87,
-        "projected_risk_level": "HIGH",
-        "days_to_critical": 52,
-        "description": "..."
-    },
-    "actions_applied": [...],
-    "total_days_gained": 28,
-    "projection_days": 90
-}
+```tsx
+{isDemo && (
+  <Alert>
+    <Info className="h-4 w-4" />
+    <AlertTitle>Demo Mode</AlertTitle>
+    <AlertDescription>
+      Showing sample data. Connect to API for live results.
+    </AlertDescription>
+  </Alert>
+)}
 ```
 
 ---
 
-## API Health Check
+## Environment Configuration
 
-```python
-def check_api_health() -> bool:
-    """Check if API is responding."""
-    try:
-        response = self.client.get(f"{self.base_url}/health", timeout=5.0)
-        return response.status_code == 200
-    except:
-        return False
+### Required Variables
+
+```env
+# frontend/.env.local
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+### Production
+
+```env
+# Production
+NEXT_PUBLIC_API_URL=https://api.waterrisk.example.com
 ```
 
 ---
 
-*Consistent API integration ensures reliable data flow.*
+## API Endpoints Reference
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/health` | GET | Health check |
+| `/zones` | GET | List zones |
+| `/zones/{id}` | GET | Get zone details |
+| `/risk/current` | GET | Current risk assessment |
+| `/risk/history` | GET | Historical risk data |
+| `/actions` | GET | Action catalog |
+| `/actions/recommended` | POST | AI recommendations |
+| `/scenarios/simulate` | POST | Run simulation |
+
+---
+
+*API integration patterns ensure consistent, type-safe communication with the backend.*

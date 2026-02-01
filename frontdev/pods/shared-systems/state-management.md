@@ -1,256 +1,319 @@
-# State Management Guide
+# State Management Patterns
 
-**Shared Systems Pod — Frontend Decision Intelligence Organization**
-
----
-
-## Purpose
-
-This document defines patterns for session state management in the frontend.
+**Shared Systems Pod — Frontend Decision Intelligence Engineering Organization**
 
 ---
 
-## Session State Overview
+## Overview
 
-Streamlit's `st.session_state` persists data across reruns within a session.
+This document defines patterns for managing state in the Next.js frontend.
 
-```python
-# Initialize
-if "key" not in st.session_state:
-    st.session_state.key = default_value
+---
 
-# Read
-value = st.session_state.key
+## State Categories
 
-# Write
-st.session_state.key = new_value
+| Category | Tool | Persistence | Use Case |
+|----------|------|-------------|----------|
+| Component State | `useState` | None | UI toggles, form inputs, loading states |
+| Derived State | `useMemo` | None | Computed values from props/state |
+| Cross-Page State | `localStorage` | Browser | Selected actions, zone preference |
+| Shareable State | URL params | None | Links that preserve context |
+
+---
+
+## Component State
+
+### Basic Pattern
+
+```typescript
+'use client';
+
+import { useState } from 'react';
+
+export function ActionSelector() {
+  const [selectedActions, setSelectedActions] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(false);
+  
+  const toggleAction = (code: string) => {
+    setSelectedActions(prev => {
+      const next = new Set(prev);
+      if (next.has(code)) {
+        next.delete(code);
+      } else {
+        next.add(code);
+      }
+      return next;
+    });
+  };
+  
+  return (
+    // ...
+  );
+}
+```
+
+### Multiple Related States
+
+```typescript
+interface PageState {
+  data: RiskResponse | null;
+  loading: boolean;
+  error: string | null;
+}
+
+// Group related states
+const [risk, setRisk] = useState<RiskResponse | null>(null);
+const [loading, setLoading] = useState(true);
+const [error, setError] = useState<string | null>(null);
 ```
 
 ---
 
-## Registered State Keys
+## Cross-Page State (localStorage)
 
-### Shared Systems (Global)
+### Saving State
 
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `selected_zone` | str | "cdmx" | Currently selected zone ID |
-| `selected_profile` | str | "government" | User profile type |
-
-### Risk Surfaces Pod
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `current_risk` | dict \| None | None | Latest risk data from API |
-
-### Action Surfaces Pod
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `recommended_actions` | list \| None | None | Actions from API |
-| `selected_actions` | list | [] | Action codes selected for simulation |
-
-### Simulation Surfaces Pod
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `simulation_result` | dict \| None | None | Latest simulation result |
-
----
-
-## State Dependencies
-
-```
-selected_zone ──────┬──────▶ current_risk
-                    │
-                    └──────▶ recommended_actions ──▶ selected_actions
-                                                            │
-selected_profile ──────────▶ recommended_actions            │
-                                                            │
-                                                            ▼
-                                                    simulation_result
+```typescript
+// Save selected actions for simulation page
+const proceedToSimulation = () => {
+  localStorage.setItem('selectedActions', JSON.stringify(Array.from(selectedActions)));
+  localStorage.setItem('selectedZone', selectedZone);
+  router.push('/simulation');
+};
 ```
 
-### Dependency Reset Pattern
+### Loading State
 
-When a parent state changes, dependent states should reset:
+```typescript
+useEffect(() => {
+  // Load from localStorage on mount
+  const storedActions = localStorage.getItem('selectedActions');
+  const storedZone = localStorage.getItem('selectedZone');
+  
+  if (storedActions) {
+    setSelectedActions(new Set(JSON.parse(storedActions)));
+  }
+  if (storedZone) {
+    setSelectedZone(storedZone);
+  }
+}, []);
+```
 
-```python
-def on_zone_change():
-    """Reset dependent state when zone changes."""
-    st.session_state.current_risk = None
-    st.session_state.recommended_actions = None
-    st.session_state.selected_actions = []
-    st.session_state.simulation_result = None
+### Clearing State
 
-def on_profile_change():
-    """Reset dependent state when profile changes."""
-    st.session_state.recommended_actions = None
-    st.session_state.selected_actions = []
-    st.session_state.simulation_result = None
+```typescript
+const resetSelection = () => {
+  localStorage.removeItem('selectedActions');
+  setSelectedActions(new Set());
+};
 ```
 
 ---
 
-## Initialization Pattern
+## URL State (Shareable)
 
-### Per-Page Initialization
+### Reading URL Params
 
-Each page should initialize keys it needs:
+```typescript
+'use client';
 
-```python
-# Risk Overview page
-if "selected_zone" not in st.session_state:
-    st.session_state.selected_zone = "cdmx"
-if "selected_profile" not in st.session_state:
-    st.session_state.selected_profile = "government"
-if "current_risk" not in st.session_state:
-    st.session_state.current_risk = None
+import { useSearchParams } from 'next/navigation';
+
+export default function RiskPage() {
+  const searchParams = useSearchParams();
+  const zone = searchParams.get('zone') || 'cdmx';
+  const profile = searchParams.get('profile') || 'government';
+  
+  // Use zone and profile...
+}
 ```
 
-### Centralized Initialization (Proposed)
+### Updating URL
 
-```python
-# utils/state.py
+```typescript
+import { useRouter, useSearchParams } from 'next/navigation';
 
-def init_session_state():
-    """Initialize all session state with defaults."""
-    defaults = {
-        "selected_zone": "cdmx",
-        "selected_profile": "government",
-        "current_risk": None,
-        "recommended_actions": None,
-        "selected_actions": [],
-        "simulation_result": None,
+export function ZoneSelector() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  const updateZone = (zone: string) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('zone', zone);
+    router.push(`?${params.toString()}`);
+  };
+  
+  return (
+    // ...
+  );
+}
+```
+
+---
+
+## Derived State (useMemo)
+
+### Computing Values
+
+```typescript
+import { useMemo } from 'react';
+
+export function ActionSummary({ actions, selectedCodes }: Props) {
+  // Memoize expensive computation
+  const totalDaysGained = useMemo(() => {
+    return actions
+      .filter(a => selectedCodes.has(a.action_code))
+      .reduce((sum, a) => sum + a.expected_effect.days_gained, 0);
+  }, [actions, selectedCodes]);
+  
+  const selectedActions = useMemo(() => {
+    return actions.filter(a => selectedCodes.has(a.action_code));
+  }, [actions, selectedCodes]);
+  
+  return (
+    <div>
+      <p>{selectedActions.length} actions selected</p>
+      <p>+{totalDaysGained} days gained</p>
+    </div>
+  );
+}
+```
+
+---
+
+## Callback Memoization (useCallback)
+
+### Event Handlers Passed as Props
+
+```typescript
+import { useCallback } from 'react';
+
+export function ActionsPage() {
+  const [selectedActions, setSelectedActions] = useState<Set<string>>(new Set());
+  
+  // Memoize to prevent unnecessary re-renders
+  const handleToggle = useCallback((code: string) => {
+    setSelectedActions(prev => {
+      const next = new Set(prev);
+      if (next.has(code)) {
+        next.delete(code);
+      } else {
+        next.add(code);
+      }
+      return next;
+    });
+  }, []);
+  
+  return (
+    <div>
+      {actions.map(action => (
+        <ActionCard
+          key={action.action_code}
+          action={action}
+          selected={selectedActions.has(action.action_code)}
+          onToggle={handleToggle}
+        />
+      ))}
+    </div>
+  );
+}
+```
+
+---
+
+## Data Fetching State
+
+### Standard Pattern
+
+```typescript
+export function useRiskData(zoneId: string) {
+  const [data, setData] = useState<RiskResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  useEffect(() => {
+    let cancelled = false;
+    
+    async function fetchData() {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const result = await api.getCurrentRisk(zoneId);
+        if (!cancelled) {
+          setData(result);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to fetch');
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
     }
     
-    for key, default in defaults.items():
-        if key not in st.session_state:
-            st.session_state[key] = default
+    fetchData();
+    
+    // Cleanup to prevent state updates on unmounted component
+    return () => {
+      cancelled = true;
+    };
+  }, [zoneId]);
+  
+  return { data, loading, error };
+}
 ```
 
 ---
 
-## State Access Patterns
+## State Patterns by Page
 
-### Reading State
+### Risk Overview
 
-```python
-# Direct access
-zone = st.session_state.selected_zone
-
-# With default
-zone = st.session_state.get("selected_zone", "cdmx")
-
-# Check existence
-if st.session_state.get("current_risk"):
-    display_risk()
+```typescript
+// State needed
+const [selectedZone, setSelectedZone] = useState('cdmx');
+const [risk, setRisk] = useState<RiskResponse | null>(null);
+const [history, setHistory] = useState<RiskHistoryResponse | null>(null);
+const [loading, setLoading] = useState(true);
+const [isDemo, setIsDemo] = useState(false);
 ```
 
-### Writing State
+### Actions Page
 
-```python
-# Direct assignment
-st.session_state.selected_zone = "monterrey"
-
-# Update and rerun
-st.session_state.selected_zone = "monterrey"
-st.rerun()
+```typescript
+// State needed
+const [selectedZone, setSelectedZone] = useState('cdmx');
+const [selectedProfile, setSelectedProfile] = useState<Profile>('government');
+const [recommendations, setRecommendations] = useState<RecommendedActionsResponse | null>(null);
+const [selectedActions, setSelectedActions] = useState<Set<string>>(new Set());
+const [loading, setLoading] = useState(false);
 ```
 
-### Conditional Update
+### Simulation Page
 
-```python
-# Only update if different
-if st.session_state.selected_zone != new_zone:
-    st.session_state.selected_zone = new_zone
-    on_zone_change()
-    st.rerun()
+```typescript
+// State needed (loaded from localStorage)
+const [selectedActions, setSelectedActions] = useState<string[]>([]);
+const [selectedZone, setSelectedZone] = useState('cdmx');
+const [simulation, setSimulation] = useState<SimulationResponse | null>(null);
+const [loading, setLoading] = useState(false);
 ```
 
 ---
 
-## Cross-Page State Flow
+## Future Considerations
 
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│     app.py      │────▶│  1_risk_overview │────▶│   2_actions     │
-│                 │     │                 │     │                 │
-│ Sets:           │     │ Reads:          │     │ Reads:          │
-│ - selected_zone │     │ - selected_zone │     │ - selected_zone │
-│ - selected_     │     │ - selected_     │     │ - selected_     │
-│   profile       │     │   profile       │     │   profile       │
-│                 │     │ Sets:           │     │ - current_risk  │
-│                 │     │ - current_risk  │     │ Sets:           │
-│                 │     │                 │     │ - recommended_  │
-│                 │     │                 │     │   actions       │
-│                 │     │                 │     │ - selected_     │
-│                 │     │                 │     │   actions       │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-                                                        │
-                                                        ▼
-                                                ┌─────────────────┐
-                                                │  3_simulation   │
-                                                │                 │
-                                                │ Reads:          │
-                                                │ - All above     │
-                                                │ Sets:           │
-                                                │ - simulation_   │
-                                                │   result        │
-                                                └─────────────────┘
-```
+If state management becomes more complex, consider:
+
+1. **Zustand** - Lightweight global state
+2. **React Query / TanStack Query** - Server state caching
+3. **Jotai** - Atomic state management
+
+For now, React hooks + localStorage are sufficient.
 
 ---
 
-## Debugging State
-
-### Log Current State
-
-```python
-import streamlit as st
-
-with st.expander("Debug: Session State"):
-    st.json(dict(st.session_state))
-```
-
-### State Snapshot
-
-```python
-def get_state_snapshot() -> dict:
-    """Get snapshot of relevant state for debugging."""
-    return {
-        "zone": st.session_state.get("selected_zone"),
-        "profile": st.session_state.get("selected_profile"),
-        "has_risk": st.session_state.get("current_risk") is not None,
-        "has_actions": st.session_state.get("recommended_actions") is not None,
-        "selected_count": len(st.session_state.get("selected_actions", [])),
-        "has_simulation": st.session_state.get("simulation_result") is not None,
-    }
-```
-
----
-
-## State Persistence Limitations
-
-### What Persists
-
-- Within single browser session
-- Across page navigation
-- Across Streamlit reruns
-
-### What Does NOT Persist
-
-- Browser refresh (full page reload)
-- New browser session
-- Server restart
-
-### For Persistent Storage
-
-If decision history needs persistence:
-- Use backend API to store decisions
-- Consider browser localStorage (via JS injection)
-- This is a future enhancement (GAP-003)
-
----
-
-*State management is the nervous system of the frontend. Handle with care.*
+*State management patterns ensure predictable, maintainable state handling across the application.*
