@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { 
-  Droplets, 
   BarChart3, 
   Zap, 
   Play,
@@ -56,18 +56,22 @@ export function Navigation() {
       >
         <div className="container flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-3 group">
+          <Link href="/" className="flex items-center group">
             <motion.div 
-              className="p-2 rounded-xl bg-primary/10 group-hover:bg-primary/15 transition-colors"
-              whileHover={{ scale: 1.05, rotate: -5 }}
-              whileTap={{ scale: 0.95 }}
+              className="relative"
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
               transition={{ duration: 0.2 }}
             >
-              <Droplets className="h-5 w-5 text-primary" />
+              <Image
+                src="/logo.png"
+                alt="Axis"
+                width={180}
+                height={100}
+                className="w-[180px] h-auto object-contain"
+                priority
+              />
             </motion.div>
-            <span className="font-bold text-lg hidden sm:inline-block tracking-tight">
-              Water Risk
-            </span>
           </Link>
           
           {/* Desktop Navigation */}

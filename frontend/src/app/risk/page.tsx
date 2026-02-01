@@ -40,7 +40,7 @@ import {
 
 export default function RiskPage() {
   const [zones, setZones] = useState<Zone[]>(DEMO_ZONES);
-  const [selectedZone, setSelectedZone] = useState<string>('cdmx');
+  const [selectedZone, setSelectedZone] = useState<string>('texas');
   const [risk, setRisk] = useState<RiskResponse | null>(null);
   const [history, setHistory] = useState<RiskHistoryResponse | null>(null);
   const [loading, setLoading] = useState(true);
