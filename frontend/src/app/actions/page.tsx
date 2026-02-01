@@ -98,7 +98,7 @@ interface SelectedAction {
 
 export default function ActionsPage() {
   const router = useRouter();
-  const [zones] = useState<Zone[]>(DEMO_ZONES);
+  const [zones, setZones] = useState<Zone[]>(DEMO_ZONES);
   const [selectedZone, setSelectedZone] = useState<string>('cdmx');
   const [selectedProfile, setSelectedProfile] = useState<Profile>('government');
   const [recommendations, setRecommendations] = useState<RecommendedActionsResponse | null>(null);
@@ -108,6 +108,21 @@ export default function ActionsPage() {
   const [isDemo, setIsDemo] = useState(false);
 
   const cardsRef = useRef<HTMLDivElement>(null);
+
+  // Fetch zones from API on mount
+  useEffect(() => {
+    async function fetchZones() {
+      try {
+        const response = await api.getZones();
+        if (response.zones && response.zones.length > 0) {
+          setZones(response.zones);
+        }
+      } catch (err) {
+        console.warn('Failed to fetch zones, using demo data:', err);
+      }
+    }
+    fetchZones();
+  }, []);
 
   const fetchRecommendations = async () => {
     setLoading(true);

@@ -50,6 +50,21 @@ export default function RiskPage() {
   const metricsRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<HTMLDivElement>(null);
 
+  // Fetch zones from API on mount
+  useEffect(() => {
+    async function fetchZones() {
+      try {
+        const response = await api.getZones();
+        if (response.zones && response.zones.length > 0) {
+          setZones(response.zones);
+        }
+      } catch (err) {
+        console.warn('Failed to fetch zones, using demo data:', err);
+      }
+    }
+    fetchZones();
+  }, []);
+
   useEffect(() => {
     async function fetchData() {
       setLoading(true);

@@ -93,6 +93,7 @@ const DEMO_SIMULATION: SimulationResponse = {
 export default function SimulationPage() {
   const [selectedActions, setSelectedActions] = useState<StoredAction[]>([]);
   const [selectedZone, setSelectedZone] = useState<string>('cdmx');
+  const [zones, setZones] = useState(DEMO_ZONES);
   const [projectionDays, setProjectionDays] = useState<number>(90);
   const [simulation, setSimulation] = useState<SimulationResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -101,6 +102,21 @@ export default function SimulationPage() {
 
   const resultsRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<HTMLDivElement>(null);
+
+  // Fetch zones from API on mount
+  useEffect(() => {
+    async function fetchZones() {
+      try {
+        const response = await api.getZones();
+        if (response.zones && response.zones.length > 0) {
+          setZones(response.zones);
+        }
+      } catch (err) {
+        console.warn('Failed to fetch zones, using demo data:', err);
+      }
+    }
+    fetchZones();
+  }, []);
 
   useEffect(() => {
     const storedActions = localStorage.getItem('selectedActions');
@@ -217,7 +233,7 @@ export default function SimulationPage() {
     with_action: simulation.with_action.trajectory[i]?.projected_spi,
   })) : [];
 
-  const zoneName = DEMO_ZONES.find(z => z.slug === selectedZone)?.name || selectedZone;
+  const zoneName = zones.find(z => z.slug === selectedZone)?.name || selectedZone;
 
   return (
     <div className="container py-8">
