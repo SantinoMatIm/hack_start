@@ -45,7 +45,8 @@ def get_current_prices(
         from src.ingestion.eia_source import EIAClient
 
         client = EIAClient(api_key=settings.eia_api_key)
-        prices = client.get_current_prices()
+        state = region if region and region != "US" else None
+        prices = client.get_current_prices(state=state)
 
         return EnergyPricesResponse(
             marginal_price_usd_mwh=prices["marginal_price_usd_mwh"],
