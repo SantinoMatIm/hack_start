@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 interface ActionCardProps {
   action: RecommendedAction;
   selected?: boolean;
-  onToggle?: (code: string) => void;
+  onToggle?: () => void;
 }
 
 export function ActionCard({ action, selected = false, onToggle }: ActionCardProps) {
@@ -32,7 +32,7 @@ export function ActionCard({ action, selected = false, onToggle }: ActionCardPro
           'border-border/60 hover:shadow-lg hover:border-border',
           selected && 'ring-2 ring-primary border-primary/30 bg-primary/[0.02] shadow-[0_0_0_1px_rgba(99,91,255,0.1)]'
         )}
-        onClick={() => onToggle?.(action.action_code)}
+        onClick={() => onToggle?.()}
       >
         {/* Selection indicator */}
         <motion.div 

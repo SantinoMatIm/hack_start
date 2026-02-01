@@ -50,6 +50,7 @@ const DEMO_ACTIONS: RecommendedActionsResponse = {
   ],
   actions: [
     {
+      action_instance_id: 'demo-instance-1',
       action_code: 'H4_LAWN_BAN',
       title: 'Lawn/Garden Irrigation Restriction',
       description: 'Prohibit or restrict lawn and garden irrigation during peak drought periods.',
@@ -58,9 +59,10 @@ const DEMO_ACTIONS: RecommendedActionsResponse = {
       parameters: { reduction_percentage: 15, duration_days: 30 },
       justification: 'SPI -1.72, WORSENING trend, 24 days to critical. Non-essential use reduction critical.',
       expected_effect: { days_gained: 19, confidence: 'estimated', formula: '1% removed → +1.3 days' },
-      method: 'ai',
+      method: 'demo',
     },
     {
+      action_instance_id: 'demo-instance-2',
       action_code: 'H2_PRESSURE_REDUCTION',
       title: 'Network Pressure Management',
       description: 'Reduce water pressure in distribution network to minimize losses and consumption.',
@@ -69,9 +71,10 @@ const DEMO_ACTIONS: RecommendedActionsResponse = {
       parameters: { pressure_reduction_percent: 10, target_zones: ['residential'] },
       justification: 'Pressure management reduces both consumption and leak losses.',
       expected_effect: { days_gained: 4, confidence: 'estimated', formula: '10% pressure → +4 days' },
-      method: 'ai',
+      method: 'demo',
     },
     {
+      action_instance_id: 'demo-instance-3',
       action_code: 'H4_CARWASH_RESTRICTION',
       title: 'Car Wash Restrictions',
       description: 'Limit commercial and residential car washing to reduce non-essential water use.',
@@ -80,10 +83,18 @@ const DEMO_ACTIONS: RecommendedActionsResponse = {
       parameters: { allowed_days: ['saturday', 'sunday'], commercial_closed: true },
       justification: 'Car washing is discretionary use that can be safely restricted.',
       expected_effect: { days_gained: 1, confidence: 'estimated', formula: '0.5% → +0.65 days' },
-      method: 'fallback',
+      method: 'demo',
     },
   ],
 };
+
+// Type for storing selected action info
+interface SelectedAction {
+  action_instance_id: string;
+  action_code: string;
+  title: string;
+  days_gained: number;
+}
 
 export default function ActionsPage() {
   const router = useRouter();
@@ -91,7 +102,7 @@ export default function ActionsPage() {
   const [selectedZone, setSelectedZone] = useState<string>('cdmx');
   const [selectedProfile, setSelectedProfile] = useState<Profile>('government');
   const [recommendations, setRecommendations] = useState<RecommendedActionsResponse | null>(null);
-  const [selectedActions, setSelectedActions] = useState<Set<string>>(new Set());
+  const [selectedActions, setSelectedActions] = useState<Map<string, SelectedAction>>(new Map());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDemo, setIsDemo] = useState(false);
@@ -146,27 +157,35 @@ export default function ActionsPage() {
     }
   }, { dependencies: [loading, recommendations] });
 
-  const toggleAction = (code: string) => {
+  const toggleAction = (actionInstanceId: string) => {
+    const action = recommendations?.actions.find(a => a.action_instance_id === actionInstanceId);
+    if (!action) return;
+    
     setSelectedActions(prev => {
-      const next = new Set(prev);
-      if (next.has(code)) {
-        next.delete(code);
+      const next = new Map(prev);
+      if (next.has(actionInstanceId)) {
+        next.delete(actionInstanceId);
       } else {
-        next.add(code);
+        next.set(actionInstanceId, {
+          action_instance_id: action.action_instance_id,
+          action_code: action.action_code,
+          title: action.title,
+          days_gained: action.expected_effect.days_gained,
+        });
       }
       return next;
     });
   };
 
   const proceedToSimulation = () => {
-    localStorage.setItem('selectedActions', JSON.stringify(Array.from(selectedActions)));
+    const actionsArray = Array.from(selectedActions.values());
+    localStorage.setItem('selectedActions', JSON.stringify(actionsArray));
     localStorage.setItem('selectedZone', selectedZone);
     router.push('/simulation');
   };
 
-  const totalDaysGained = recommendations?.actions
-    .filter(a => selectedActions.has(a.action_code))
-    .reduce((sum, a) => sum + a.expected_effect.days_gained, 0) || 0;
+  const totalDaysGained = Array.from(selectedActions.values())
+    .reduce((sum, a) => sum + a.days_gained, 0);
 
   return (
     <div className="container py-8">
@@ -295,11 +314,11 @@ export default function ActionsPage() {
           {/* Actions Grid */}
           <div ref={cardsRef} className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
             {recommendations.actions.map((action) => (
-              <div key={action.action_code} className="action-card-wrapper">
+              <div key={action.action_instance_id} className="action-card-wrapper">
                 <ActionCard
                   action={action}
-                  selected={selectedActions.has(action.action_code)}
-                  onToggle={toggleAction}
+                  selected={selectedActions.has(action.action_instance_id)}
+                  onToggle={() => toggleAction(action.action_instance_id)}
                 />
               </div>
             ))}

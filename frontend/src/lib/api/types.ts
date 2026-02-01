@@ -72,6 +72,7 @@ export interface ExpectedEffect {
 }
 
 export interface RecommendedAction {
+  action_instance_id: string;  // UUID for simulation
   action_code: string;
   title: string;
   description: string;
@@ -80,7 +81,7 @@ export interface RecommendedAction {
   parameters: Record<string, unknown>;
   justification: string;
   expected_effect: ExpectedEffect;
-  method: 'ai' | 'fallback';
+  method: 'ai' | 'fallback' | 'demo';
 }
 
 export interface ContextSummary {
@@ -135,8 +136,14 @@ export interface ScenarioComparison {
 
 export interface SimulationRequest {
   zone_id: string;
-  action_codes: string[];
+  action_instance_ids: string[];  // UUIDs from RecommendedAction
   projection_days?: number;
+}
+
+export interface ActionApplied {
+  code: string;
+  title: string;
+  days_gained: number;
 }
 
 export interface SimulationResponse {
@@ -145,6 +152,7 @@ export interface SimulationResponse {
   with_action: ScenarioResult;
   comparison: ScenarioComparison;
   summary: string;
+  actions_applied: ActionApplied[];
 }
 
 // Health
@@ -152,11 +160,7 @@ export interface HealthResponse {
   status: string;
   environment: string;
   demo_mode: boolean;
-  database: {
-    configured: boolean;
-    connected: boolean;
-  };
-  openai: {
-    configured: boolean;
-  };
+  database_configured: boolean;
+  openai_configured: boolean;
+  note?: string;
 }

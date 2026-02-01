@@ -44,6 +44,14 @@ import {
   Legend,
 } from 'recharts';
 
+// Type for stored action info
+interface StoredAction {
+  action_instance_id: string;
+  action_code: string;
+  title: string;
+  days_gained: number;
+}
+
 // Demo simulation response
 const DEMO_SIMULATION: SimulationResponse = {
   zone_id: 'cdmx',
@@ -76,10 +84,14 @@ const DEMO_SIMULATION: SimulationResponse = {
     actions_count: 2,
   },
   summary: 'Taking the selected actions is projected to gain 28 additional days before reaching critical threshold, improving SPI by 0.6 points and preventing escalation to CRITICAL risk level.',
+  actions_applied: [
+    { code: 'H4_LAWN_BAN', title: 'Lawn/Garden Irrigation Restriction', days_gained: 19 },
+    { code: 'H2_PRESSURE_REDUCTION', title: 'Network Pressure Management', days_gained: 4 },
+  ],
 };
 
 export default function SimulationPage() {
-  const [selectedActions, setSelectedActions] = useState<string[]>([]);
+  const [selectedActions, setSelectedActions] = useState<StoredAction[]>([]);
   const [selectedZone, setSelectedZone] = useState<string>('cdmx');
   const [projectionDays, setProjectionDays] = useState<number>(90);
   const [simulation, setSimulation] = useState<SimulationResponse | null>(null);
@@ -95,7 +107,21 @@ export default function SimulationPage() {
     const storedZone = localStorage.getItem('selectedZone');
     
     if (storedActions) {
-      setSelectedActions(JSON.parse(storedActions));
+      const parsed = JSON.parse(storedActions);
+      // Handle both old format (string[]) and new format (StoredAction[])
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        if (typeof parsed[0] === 'string') {
+          // Legacy format - convert to new format with demo IDs
+          setSelectedActions(parsed.map((code: string) => ({
+            action_instance_id: `legacy-${code}`,
+            action_code: code,
+            title: code,
+            days_gained: 0,
+          })));
+        } else {
+          setSelectedActions(parsed);
+        }
+      }
     }
     if (storedZone) {
       setSelectedZone(storedZone);
@@ -158,14 +184,26 @@ export default function SimulationPage() {
     try {
       const data = await api.simulateScenario({
         zone_id: selectedZone,
-        action_codes: selectedActions,
+        action_instance_ids: selectedActions.map(a => a.action_instance_id),
         projection_days: projectionDays,
       });
       setSimulation(data);
       setIsDemo(false);
     } catch (err) {
       console.warn('API unavailable, using demo data:', err);
-      setSimulation(DEMO_SIMULATION);
+      // Update demo simulation with selected actions info
+      setSimulation({
+        ...DEMO_SIMULATION,
+        comparison: {
+          ...DEMO_SIMULATION.comparison,
+          actions_count: selectedActions.length,
+        },
+        actions_applied: selectedActions.map(a => ({
+          code: a.action_code,
+          title: a.title,
+          days_gained: a.days_gained,
+        })),
+      });
       setIsDemo(true);
     } finally {
       setLoading(false);
@@ -274,8 +312,8 @@ export default function SimulationPage() {
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">Actions:</span>
                     <div className="flex gap-1 flex-wrap">
-                      {selectedActions.map(code => (
-                        <Badge key={code} variant="secondary" className="text-xs">{code}</Badge>
+                      {selectedActions.map(action => (
+                        <Badge key={action.action_instance_id} variant="secondary" className="text-xs">{action.action_code}</Badge>
                       ))}
                     </div>
                   </div>
