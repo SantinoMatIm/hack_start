@@ -204,7 +204,7 @@ def get_risk_history(
 
     return RiskHistoryResponse(
         zone_id=zone.slug,
-        history=[
+        snapshots=[
             RiskSnapshotResponse(
                 id=str(s.id),
                 spi_6m=s.spi_6m,
