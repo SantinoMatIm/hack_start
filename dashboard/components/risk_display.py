@@ -3,6 +3,13 @@ Risk display components
 """
 
 import streamlit as st
+from pathlib import Path
+import sys
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from utils.icons import icon, icon_span
 
 
 def get_risk_color_class(risk_level: str) -> str:
@@ -10,14 +17,35 @@ def get_risk_color_class(risk_level: str) -> str:
     return risk_level.lower() if risk_level else "low"
 
 
-def get_trend_icon(trend: str) -> str:
-    """Get icon for trend direction"""
-    icons = {
-        "IMPROVING": "📈",
-        "STABLE": "➡️",
-        "WORSENING": "📉"
+def get_risk_color(risk_level: str) -> str:
+    """Get color for risk level"""
+    colors = {
+        "CRITICAL": "#DC2626",
+        "HIGH": "#EA580C",
+        "MEDIUM": "#D97706",
+        "LOW": "#059669"
     }
-    return icons.get(trend, "➡️")
+    return colors.get(risk_level.upper() if risk_level else "LOW", "#059669")
+
+
+def get_trend_icon(trend: str) -> str:
+    """Get icon name for trend direction"""
+    icons = {
+        "IMPROVING": "trending-up",
+        "STABLE": "minus",
+        "WORSENING": "trending-down"
+    }
+    return icons.get(trend, "minus")
+
+
+def get_trend_color(trend: str) -> str:
+    """Get color for trend"""
+    colors = {
+        "IMPROVING": "#059669",
+        "STABLE": "#94A3B8",
+        "WORSENING": "#DC2626"
+    }
+    return colors.get(trend, "#94A3B8")
 
 
 def render_risk_card(risk_data: dict):
@@ -33,33 +61,41 @@ def render_risk_card(risk_data: dict):
     zone_id = risk_data.get("zone_id", "unknown")
 
     risk_class = get_risk_color_class(risk_level)
-    trend_icon = get_trend_icon(trend)
+    risk_color = get_risk_color(risk_level)
+    trend_icon_name = get_trend_icon(trend)
+    trend_color = get_trend_color(trend)
 
     st.markdown(f"""
-    <div class="risk-card {risk_class} reveal fade-up">
+    <div class="risk-card {risk_class} fade-in">
         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
             <div>
-                <span class="metric-label">Current Risk Level</span>
-                <div class="metric-value {risk_class}" style="font-size: 48px;">{risk_level}</div>
+                <span class="label">Current Risk Level</span>
+                <div style="font-size: 42px; font-weight: 700; color: {risk_color}; margin-top: 4px;">{risk_level}</div>
             </div>
             <div style="text-align: right;">
-                <span class="metric-label">Zone</span>
-                <div style="font-size: 24px; font-weight: 700;">{zone_id.upper()}</div>
+                <span class="label">Zone</span>
+                <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+                    {icon_span("map-pin", 18, "#475569")}
+                    <span style="font-size: 20px; font-weight: 600; color: var(--text-primary);">{zone_id.upper()}</span>
+                </div>
             </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; margin-top: 32px;">
-            <div class="metric-container" style="text-align: left; padding: 0;">
-                <span class="metric-label">SPI-6 Month</span>
-                <div class="metric-value {risk_class}">{spi:.2f}</div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; padding-top: 24px; border-top: 1px solid var(--border-default);">
+            <div>
+                <span class="label">SPI-6 Month</span>
+                <div style="font-size: 32px; font-weight: 700; color: {risk_color}; margin-top: 4px;">{spi:.2f}</div>
             </div>
-            <div class="metric-container" style="text-align: center; padding: 0;">
-                <span class="metric-label">Trend</span>
-                <div style="font-size: 32px; font-weight: 700;">{trend_icon} {trend}</div>
+            <div style="text-align: center;">
+                <span class="label">Trend</span>
+                <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px;">
+                    {icon_span(trend_icon_name, 24, trend_color)}
+                    <span style="font-size: 18px; font-weight: 600; color: {trend_color};">{trend}</span>
+                </div>
             </div>
-            <div class="metric-container" style="text-align: right; padding: 0;">
-                <span class="metric-label">Days to Critical</span>
-                <div class="metric-value {risk_class}">{days_to_critical}</div>
+            <div style="text-align: right;">
+                <span class="label">Days to Critical</span>
+                <div style="font-size: 32px; font-weight: 700; color: {risk_color}; margin-top: 4px;">{days_to_critical}</div>
             </div>
         </div>
     </div>
@@ -75,24 +111,24 @@ def render_risk_gauge(spi_value: float):
     position = max(0, min(100, position))  # Clamp to 0-100
 
     st.markdown(f"""
-    <div class="reveal fade-up">
+    <div class="spi-gauge-container fade-in">
         <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-            <span style="font-size: 12px; color: var(--text-muted);">Exceptionally Dry</span>
+            <span style="font-size: 12px; color: var(--text-muted);">Extreme Drought</span>
             <span style="font-size: 12px; color: var(--text-muted);">Normal</span>
         </div>
         <div class="spi-gauge">
             <div class="spi-marker" style="left: {position}%;"></div>
         </div>
-        <div style="display: flex; justify-content: space-between; margin-top: 8px;">
-            <span style="font-size: 12px; font-weight: 600;">-3.0</span>
-            <span style="font-size: 12px; font-weight: 600;">-2.0</span>
-            <span style="font-size: 12px; font-weight: 600;">-1.5</span>
-            <span style="font-size: 12px; font-weight: 600;">-1.0</span>
-            <span style="font-size: 12px; font-weight: 600;">0</span>
+        <div class="spi-labels">
+            <span>-3.0</span>
+            <span>-2.0</span>
+            <span>-1.5</span>
+            <span>-1.0</span>
+            <span>0</span>
         </div>
         <div style="text-align: center; margin-top: 16px;">
-            <span style="font-size: 14px; color: var(--text-muted);">Current SPI: </span>
-            <span style="font-size: 18px; font-weight: 700;">{spi_value:.2f}</span>
+            <span style="font-size: 13px; color: var(--text-muted);">Current SPI: </span>
+            <span style="font-size: 17px; font-weight: 600; color: var(--text-primary);">{spi_value:.2f}</span>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -106,40 +142,44 @@ def render_risk_metrics(risk_data: dict):
     col1, col2, col3, col4 = st.columns(4)
 
     risk_level = risk_data.get("risk_level", "UNKNOWN")
-    risk_class = get_risk_color_class(risk_level)
+    risk_color = get_risk_color(risk_level)
+    trend = risk_data.get("trend", "STABLE")
+    trend_icon_name = get_trend_icon(trend)
+    trend_color = get_trend_color(trend)
 
     with col1:
         st.markdown(f"""
-        <div class="metric-container reveal fade-up">
-            <div class="metric-value {risk_class}">{risk_data.get('spi_6m', 0):.2f}</div>
-            <div class="metric-label">SPI-6 Month</div>
+        <div class="stat-card fade-in">
+            <div class="stat-label">SPI-6 Month</div>
+            <div class="stat-value" style="color: {risk_color};">{risk_data.get('spi_6m', 0):.2f}</div>
         </div>
         """, unsafe_allow_html=True)
 
     with col2:
         st.markdown(f"""
-        <div class="metric-container reveal fade-up" style="transition-delay: 100ms;">
-            <div class="metric-value {risk_class}">{risk_level}</div>
-            <div class="metric-label">Risk Level</div>
+        <div class="stat-card fade-in" style="animation-delay: 50ms;">
+            <div class="stat-label">Risk Level</div>
+            <div class="stat-value" style="color: {risk_color};">{risk_level}</div>
         </div>
         """, unsafe_allow_html=True)
 
     with col3:
-        trend = risk_data.get("trend", "STABLE")
-        trend_icon = get_trend_icon(trend)
         st.markdown(f"""
-        <div class="metric-container reveal fade-up" style="transition-delay: 200ms;">
-            <div class="metric-value">{trend_icon}</div>
-            <div class="metric-label">{trend}</div>
+        <div class="stat-card fade-in" style="animation-delay: 100ms;">
+            <div class="stat-label">Trend</div>
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+                {icon_span(trend_icon_name, 20, trend_color)}
+                <span style="font-size: 18px; font-weight: 600; color: {trend_color};">{trend}</span>
+            </div>
         </div>
         """, unsafe_allow_html=True)
 
     with col4:
         days = risk_data.get("days_to_critical", "N/A")
         st.markdown(f"""
-        <div class="metric-container reveal fade-up" style="transition-delay: 300ms;">
-            <div class="metric-value {risk_class}">{days}</div>
-            <div class="metric-label">Days to Critical</div>
+        <div class="stat-card fade-in" style="animation-delay: 150ms;">
+            <div class="stat-label">Days to Critical</div>
+            <div class="stat-value" style="color: {risk_color};">{days}</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -167,10 +207,20 @@ def render_risk_explanation(risk_data: dict):
         "IMPROVING": "Conditions are improving. Drought severity is decreasing."
     }
 
+    risk_color = get_risk_color(risk_level)
+    trend_icon_name = get_trend_icon(trend)
+    trend_color = get_trend_color(trend)
+
     st.markdown(f"""
-    <div class="risk-explanation reveal fade-up" style="background: var(--bg-surface); padding: 24px; border: 1px solid var(--border-default); margin-top: 24px;">
-        <h3 style="margin-bottom: 16px;">Assessment Summary</h3>
-        <p>{explanations.get(risk_level, "Risk level unknown.")}</p>
-        <p style="margin-top: 12px; color: var(--text-muted);">{trend_explanations.get(trend, "")}</p>
+    <div class="card fade-in" style="margin-top: 24px;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+            {icon_span("info", 18, "#2563EB")}
+            <h3 style="margin: 0; font-size: 16px;">Assessment Summary</h3>
+        </div>
+        <p style="color: var(--text-secondary); margin-bottom: 12px;">{explanations.get(risk_level, "Risk level unknown.")}</p>
+        <div style="display: flex; align-items: center; gap: 8px; padding-top: 12px; border-top: 1px solid var(--border-default);">
+            {icon_span(trend_icon_name, 16, trend_color)}
+            <span style="font-size: 14px; color: {trend_color};">{trend_explanations.get(trend, "")}</span>
+        </div>
     </div>
     """, unsafe_allow_html=True)
