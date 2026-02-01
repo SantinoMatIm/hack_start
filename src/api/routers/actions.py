@@ -269,7 +269,7 @@ def get_recommended_actions(
 
     # Full database mode
     from src.db.connection import get_session
-    from src.db.models import Zone, RiskSnapshot, Action
+    from src.db.models import Zone, RiskSnapshot, Action, ActionInstance
     from src.heuristics.heuristic_registry import HeuristicRegistry
     from src.ai_orchestrator.orchestrator import AIOrchestrator
 
@@ -353,6 +353,19 @@ def get_recommended_actions(
             default_parameters=rec.get("default_parameters", {}),
         )
 
+        # Persist ActionInstance (OpenAI/fallback parameterization saved to DB)
+        action_instance = ActionInstance(
+            zone_id=zone.id,
+            base_action_id=action.id,
+            profile=profile.value,
+            parameters=result.parameters,
+            justification=result.justification,
+            expected_effect=result.expected_effect,
+            priority_score=rec.get("priority_score", 50),
+        )
+        session.add(action_instance)
+        session.flush()  # Get action_instance.id for linking in simulations
+
         parameterized_actions.append(RecommendedActionResponse(
             action_code=result.action_code,
             title=action.title,
@@ -369,7 +382,7 @@ def get_recommended_actions(
             method=result.method,
         ))
 
-    return RecommendedActionsResponse(
+    response = RecommendedActionsResponse(
         zone_id=zone.slug,
         profile=profile.value,
         context=ContextSummary(
@@ -390,3 +403,5 @@ def get_recommended_actions(
         ],
         actions=parameterized_actions,
     )
+    session.commit()
+    return response
